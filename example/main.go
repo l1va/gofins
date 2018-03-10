@@ -12,15 +12,22 @@ func main() {
 	c := fins.NewClient(plcAddr)
 	defer c.CloseConnection()
 
+	c.WriteDAsync(100, []uint16{5,4,3,2,1}, func(fins.Response){
+		log.Println("writing done!")
+	})
+	c.ReadDAsync(100, 5, func(r fins.Response){
+		log.Println("readed values: ", r.Data)
+	})
+
 	for i := 0; i < 10; i += 1 {
 		t := uint16(i * 5)
-		err := c.WriteDM(200, []uint16{t, t + 1, t + 2, t + 3, t + 4})
+		err := c.WriteD(200+t, []uint16{t, t + 1, t + 2, t + 3, t + 4})
 		if err != nil {
 			log.Fatal(err)
 		}
 	}
 
-	vals, err := c.ReadDM(200, 50)
+	vals, err := c.ReadD(200, 50)
 	if err != nil {
 		log.Fatal(err)
 	}

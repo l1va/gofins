@@ -10,14 +10,14 @@ import (
 
 type Client struct {
 	conn net.Conn
-	resp []chan Answer
+	resp []chan Response
 	sync.Mutex
 	sid  byte
 }
 
-type Answer struct {
+type Response struct {
 	sid  byte
-	data []uint16
+	Data []uint16
 }
 
 func NewClient(plcAddr string) *Client {
@@ -28,7 +28,7 @@ func NewClient(plcAddr string) *Client {
 		panic(fmt.Sprintf("error resolving UDP port: %s\n", plcAddr))
 	}
 	c.conn = conn
-	c.resp = make([]chan Answer, 256)
+	c.resp = make([]chan Response, 256) //storage for all responses, sid is byte - only 256 values
 	go c.listenLoop()
 
 	return c
@@ -38,38 +38,88 @@ func NewClient(plcAddr string) *Client {
 func (c *Client) CloseConnection() {
 	c.conn.Close()
 }
-func (c *Client) incrementSid()byte{
-	c.Lock()
-	c.sid+=1
-	sid:= c.sid
+
+func (c *Client) incrementSid() byte {
+	c.Lock() //thread-safe sid incrementation
+	c.sid += 1
+	sid := c.sid
 	c.Unlock()
+	c.resp[sid] = make(chan Response) //clear storage for new response
 	return sid
 }
 
-func (c *Client) ReadDM(startAddr uint16, readCount uint16) ([]uint16, error) {
+func (c *Client) ReadD(startAddr uint16, readCount uint16) ([]uint16, error) {
 	sid := c.incrementSid()
-	c.resp[sid] = make(chan Answer)
+	cmd := readDCommand(newHeader(sid), startAddr, readCount)
+	return c.read(sid, cmd)
+}
 
-	_, err := c.conn.Write(readDMCommand(newHeader(sid), startAddr, readCount))
+func (c *Client) ReadW(startAddr uint16, readCount uint16) ([]uint16, error) {
+	sid := c.incrementSid()
+	cmd := readWCommand(newHeader(sid), startAddr, readCount)
+	return c.read(sid, cmd)
+}
+
+func (c *Client) read(sid byte, cmd []byte) ([]uint16, error) {
+	_, err := c.conn.Write(cmd)
 	if err != nil {
 		return nil, err
 	}
 
 	ans := <-c.resp[sid]
-	return ans.data, nil
+	return ans.Data, nil
 }
 
-func (c *Client) WriteDM(startAddr uint16, data []uint16) error {
+func (c *Client) WriteD(startAddr uint16, data []uint16) error {
 	sid := c.incrementSid()
-	c.resp[sid] = make(chan Answer)
+	cmd := writeDCommand(newHeader(sid), startAddr, data)
+	return c.write(sid, cmd)
+}
 
-	_, err := c.conn.Write(writeDMCommand(newHeader(sid), startAddr, data))
+func (c *Client) WriteW(startAddr uint16, data []uint16) error {
+	sid := c.incrementSid()
+	cmd := writeWCommand(newHeader(sid), startAddr, data)
+	return c.write(sid, cmd)
+}
+
+func (c *Client) write(sid byte, cmd []byte) error {
+	_, err := c.conn.Write(cmd)
 	if err != nil {
 		return err
 	}
 
 	<-c.resp[sid]
 	return nil
+}
+
+func (c *Client) ReadDAsync(startAddr uint16, readCount uint16, callback func(resp Response)) error {
+	sid := c.incrementSid()
+	cmd := readDCommand(newHeader(sid), startAddr, readCount)
+	return c.asyncCommand(sid, cmd, callback)
+}
+
+func (c *Client) WriteDAsync(startAddr uint16, data []uint16, callback func(resp Response)) error {
+	sid := c.incrementSid()
+	cmd := writeDCommand(newHeader(sid), startAddr, data)
+	return c.asyncCommand(sid, cmd, callback)
+}
+
+func (c *Client) asyncCommand(sid byte, cmd []byte, callback func(resp Response)) error {
+	_, err := c.conn.Write(cmd)
+	if err != nil {
+		return err
+	}
+	asyncResponse(c.resp[sid], callback)
+	return nil
+}
+
+func asyncResponse(ch chan Response, callback func(r Response)) {
+	if callback != nil {
+		go func(ch chan Response, callback func(r Response)) {
+			ans := <-ch
+			callback(ans)
+		}(ch, callback)
+	}
 }
 
 func (c *Client) listenLoop() {
@@ -81,7 +131,7 @@ func (c *Client) listenLoop() {
 		}
 
 		if n > 0 {
-			ans, err := parseAnswer(buf[0:n])
+			ans, err := parseResponse(buf[0:n])
 			if err != nil {
 				log.Println("failed to parse response: ", buf)
 			} else {
