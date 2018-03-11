@@ -10,7 +10,7 @@ import (
 //TODO: implement me
 
 func TestFinsClient(t *testing.T) {
-	plcAddr := "127.0.0.1:8000"
+	plcAddr := ":9600"
 
 	toWrite := []uint16{5, 4, 3, 2, 1}
 
@@ -22,6 +22,7 @@ func TestFinsClient(t *testing.T) {
 	defer plc.CloseConnection()
 
 	c := NewClient(plcAddr)
+	defer c.CloseConnection()
 	err := c.WriteD(100, toWrite)
 	assert.Nil(t, err)
 	vals, err := c.ReadD(100, 5)
