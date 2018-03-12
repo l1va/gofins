@@ -12,12 +12,19 @@ func main() {
 	c := fins.NewClient(plcAddr)
 	defer c.CloseConnection()
 
-	c.WriteDAsync(100, []uint16{5,4,3,2,1}, func(fins.Response){
+	err := c.WriteDAsync(100, []uint16{5, 4, 3, 2, 1}, func(fins.Response) {
 		log.Println("writing done!")
 	})
-	c.ReadDAsync(100, 5, func(r fins.Response){
+	if err != nil {
+		log.Println("writing request failed:", err)
+	}
+
+	err = c.ReadDAsync(100, 5, func(r fins.Response) {
 		log.Println("readed values: ", r.Data)
 	})
+	if err != nil {
+		log.Println("reading request failed:", err)
+	}
 
 	for i := 0; i < 10; i += 1 {
 		t := uint16(i * 5)
@@ -25,6 +32,11 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
+	}
+
+	err = c.WriteDNoResponse(200, []uint16{5, 4, 3, 2, 1})
+	if err != nil {
+		log.Println("writing request without response failed:", err)
 	}
 
 	vals, err := c.ReadD(200, 50)

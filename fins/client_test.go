@@ -17,6 +17,7 @@ func TestFinsClient(t *testing.T) {
 	answers := map[byte][]byte{
 		1: makeWriteAnswer(1),
 		2: makeReadAnswer(2, toWrite),
+		4: makeReadAnswer(4, toWrite),
 	}
 	plc := NewPLCMock(plcAddr, answers)
 	defer plc.CloseConnection()
@@ -26,6 +27,11 @@ func TestFinsClient(t *testing.T) {
 	err := c.WriteD(100, toWrite)
 	assert.Nil(t, err)
 	vals, err := c.ReadD(100, 5)
+	assert.Nil(t, err)
+	assert.Equal(t, toWrite, vals)
+	err = c.WriteDNoResponse(200, toWrite)
+	assert.Nil(t, err)
+	vals, err = c.ReadD(200, 5)
 	assert.Nil(t, err)
 	assert.Equal(t, toWrite, vals)
 }
@@ -68,7 +74,7 @@ func (c *PLCMock) CloseConnection() {
 
 func (c *PLCMock) listenLoop() {
 	for {
-		buf := make([]byte, 1024)
+		buf := make([]byte, 2048)
 		n, addr, err := c.pc.ReadFrom(buf)
 		if err != nil {
 			log.Fatal(err)
@@ -76,7 +82,12 @@ func (c *PLCMock) listenLoop() {
 
 		if n > 0 {
 			sid := buf[9]
-			c.pc.WriteTo(c.answers[sid], addr)
+			ans := c.answers[sid]
+			if ans != nil {
+				c.pc.WriteTo(c.answers[sid], addr)
+			} else {
+				log.Println("Warning: there is no answer for sid =", sid)
+			}
 		} else {
 			log.Println("cannot read request: ", buf)
 		}

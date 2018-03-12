@@ -15,7 +15,7 @@ type Header struct {
 	sid byte
 }
 
-func newHeader(sid byte) *Header {
+func defaultHeader(sid byte) *Header {
 	h := new(Header)
 	h.icf = icf()
 	h.rsv = rsv()
@@ -30,6 +30,12 @@ func newHeader(sid byte) *Header {
 	return h
 }
 
+func newHeaderNoResponse(sid byte) *Header {
+	h := defaultHeader(sid)
+	h.icf = icfNoResponse()
+	return h
+}
+
 func (f *Header) Format() []byte {
 
 	return []byte{
@@ -41,6 +47,10 @@ func (f *Header) Format() []byte {
 
 func icf() byte {
 	return 0x80 //128
+}
+
+func icfNoResponse() byte {
+	return 0x81 //129
 }
 
 func rsv() byte {

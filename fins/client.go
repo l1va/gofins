@@ -50,13 +50,13 @@ func (c *Client) incrementSid() byte {
 
 func (c *Client) ReadD(startAddr uint16, readCount uint16) ([]uint16, error) {
 	sid := c.incrementSid()
-	cmd := readDCommand(newHeader(sid), startAddr, readCount)
+	cmd := readDCommand(defaultHeader(sid), startAddr, readCount)
 	return c.read(sid, cmd)
 }
 
 func (c *Client) ReadW(startAddr uint16, readCount uint16) ([]uint16, error) {
 	sid := c.incrementSid()
-	cmd := readWCommand(newHeader(sid), startAddr, readCount)
+	cmd := readWCommand(defaultHeader(sid), startAddr, readCount)
 	return c.read(sid, cmd)
 }
 
@@ -72,13 +72,13 @@ func (c *Client) read(sid byte, cmd []byte) ([]uint16, error) {
 
 func (c *Client) WriteD(startAddr uint16, data []uint16) error {
 	sid := c.incrementSid()
-	cmd := writeDCommand(newHeader(sid), startAddr, data)
+	cmd := writeDCommand(defaultHeader(sid), startAddr, data)
 	return c.write(sid, cmd)
 }
 
 func (c *Client) WriteW(startAddr uint16, data []uint16) error {
 	sid := c.incrementSid()
-	cmd := writeWCommand(newHeader(sid), startAddr, data)
+	cmd := writeWCommand(defaultHeader(sid), startAddr, data)
 	return c.write(sid, cmd)
 }
 
@@ -94,13 +94,13 @@ func (c *Client) write(sid byte, cmd []byte) error {
 
 func (c *Client) ReadDAsync(startAddr uint16, readCount uint16, callback func(resp Response)) error {
 	sid := c.incrementSid()
-	cmd := readDCommand(newHeader(sid), startAddr, readCount)
+	cmd := readDCommand(defaultHeader(sid), startAddr, readCount)
 	return c.asyncCommand(sid, cmd, callback)
 }
 
 func (c *Client) WriteDAsync(startAddr uint16, data []uint16, callback func(resp Response)) error {
 	sid := c.incrementSid()
-	cmd := writeDCommand(newHeader(sid), startAddr, data)
+	cmd := writeDCommand(defaultHeader(sid), startAddr, data)
 	return c.asyncCommand(sid, cmd, callback)
 }
 
@@ -122,9 +122,15 @@ func asyncResponse(ch chan Response, callback func(r Response)) {
 	}
 }
 
+func (c *Client) WriteDNoResponse(startAddr uint16, data []uint16) error {
+	sid := c.incrementSid()
+	cmd := writeDCommand(newHeaderNoResponse(sid), startAddr, data)
+	return c.asyncCommand(sid, cmd, nil)
+}
+
 func (c *Client) listenLoop() {
 	for {
-		buf := make([]byte, 1024) // is it enough?
+		buf := make([]byte, 2048)
 		n, err := bufio.NewReader(c.conn).Read(buf)
 		if err != nil {
 			log.Fatal(err)
@@ -133,7 +139,7 @@ func (c *Client) listenLoop() {
 		if n > 0 {
 			ans, err := parseResponse(buf[0:n])
 			if err != nil {
-				log.Println("failed to parse response: ", buf)
+				log.Println("failed to parse response: ", err, " \nresponse:", buf[0:n])
 			} else {
 				c.resp[ans.sid] <- *ans
 			}
