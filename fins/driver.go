@@ -98,7 +98,7 @@ func parseResponse(bytes []byte) (*Response, error) {
 	finishCode2 := bytes[13]
 
 	if finishCode1 != 0 || finishCode2 != 0 {
-		msg := fmt.Sprintln("failure code:", finishCode1, ":", finishCode2)
+		msg := fmt.Sprintln("failure code: ", finishCode1, ": ", finishCode2)
 		return nil, errors.New(msg)
 	}
 

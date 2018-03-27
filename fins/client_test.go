@@ -14,9 +14,10 @@ func TestFinsClient(t *testing.T) {
 
 	toWrite := []uint16{5, 4, 3, 2, 1}
 
-	answers := map[byte][]byte{
-		1: makeWriteAnswer(1),
+	answers := map[byte]response{
+		1: makeWriteAnswer(1, true),
 		2: makeReadAnswer(2, toWrite),
+		3: makeWriteAnswer(3, false),
 		4: makeReadAnswer(4, toWrite),
 	}
 	plc := NewPLCMock(plcAddr, answers)
@@ -36,23 +37,28 @@ func TestFinsClient(t *testing.T) {
 	assert.Equal(t, toWrite, vals)
 }
 
-func makeWriteAnswer(sid byte) []byte {
-	ans := make([]byte, 14)
-	ans[9] = sid
-	return ans
+type response struct {
+	data   []byte
+	needed bool
 }
-func makeReadAnswer(sid byte, data []uint16) []byte {
+
+func makeWriteAnswer(sid byte, respNeeded bool) response {
 	ans := make([]byte, 14)
 	ans[9] = sid
-	return append(ans, toBytes(data)...)
+	return response{data: ans, needed: respNeeded}
+}
+func makeReadAnswer(sid byte, data []uint16) response {
+	ans := make([]byte, 14)
+	ans[9] = sid
+	return response{data: append(ans, toBytes(data)...), needed: true}
 }
 
 type PLCMock struct {
-	answers map[byte][]byte
+	answers map[byte]response
 	pc      net.PacketConn
 }
 
-func NewPLCMock(plcAddr string, answers map[byte][]byte) *PLCMock {
+func NewPLCMock(plcAddr string, answers map[byte]response) *PLCMock {
 	c := new(PLCMock)
 	c.answers = answers
 
@@ -82,14 +88,16 @@ func (c *PLCMock) listenLoop() {
 
 		if n > 0 {
 			sid := buf[9]
-			ans := c.answers[sid]
-			if ans != nil {
-				c.pc.WriteTo(c.answers[sid], addr)
+			ans, exist := c.answers[sid]
+			if exist {
+				if ans.needed {
+					c.pc.WriteTo(c.answers[sid].data, addr)
+				}
 			} else {
-				log.Println("Warning: there is no answer for sid =", sid)
+				log.Fatal("There is no answer for sid =", sid)
 			}
 		} else {
-			log.Println("cannot read request: ", buf)
+			log.Fatal("Cannot read request: ", buf)
 		}
 	}
 }

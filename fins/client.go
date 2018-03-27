@@ -44,7 +44,7 @@ func (c *Client) incrementSid() byte {
 	c.sid += 1
 	sid := c.sid
 	c.Unlock()
-	c.resp[sid] = make(chan Response) //clear storage for new response
+	c.resp[sid] = make(chan Response) //clearing cell of storage for new response
 	return sid
 }
 
@@ -139,7 +139,7 @@ func (c *Client) listenLoop() {
 		if n > 0 {
 			ans, err := parseResponse(buf[0:n])
 			if err != nil {
-				log.Println("failed to parse response: ", err, " \nresponse:", buf[0:n])
+				log.Println("failed to parse response: ", err, " \nresponse: ", buf[0:n])
 			} else {
 				c.resp[ans.sid] <- *ans
 			}
