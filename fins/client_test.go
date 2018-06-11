@@ -5,10 +5,16 @@ import (
 	"log"
 	"net"
 	"github.com/stretchr/testify/assert"
+	"strconv"
+	"fmt"
 )
 
 func TestFinsClient(t *testing.T) {
-	plcAddr := ":59600"
+	l, err := net.Listen("tcp", ":0")
+	assert.Nil(t, err)
+	plcAddr := ":" + strconv.Itoa(l.Addr().(*net.TCPAddr).Port)
+	l.Close()
+	fmt.Println(plcAddr)
 
 	toWrite := []uint16{5, 4, 3, 2, 1}
 
@@ -23,7 +29,7 @@ func TestFinsClient(t *testing.T) {
 
 	c := NewClient(plcAddr)
 	defer c.CloseConnection()
-	err := c.WriteD(100, toWrite)
+	err = c.WriteD(100, toWrite)
 	assert.Nil(t, err)
 	vals, err := c.ReadD(100, 5)
 	assert.Nil(t, err)
