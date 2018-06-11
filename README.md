@@ -9,12 +9,12 @@ The library support communication to omron PLC from Go application.
 
 Ideas were taken from https://github.com/hiroeorz/omron-fins-go and https://github.com/patrick--/node-omron-fins
 
-Library was tested with Omron PLC NJ501-1300. Mean time of the cycle request-response is 4ms.
+Library was tested with <b>Omron PLC NJ501-1300</b>. Mean time of the cycle request-response is 4ms.
 
 Feel free to ask questions, raise issues and make pull requests!
 
 
-<b>PS.</b>Build is ok but Travis is failing to run tests with go 1.10
+<b>PS. Build is ok</b> but Travis is failing to run tests with <b>go 1.10</b>
 (with earlier go versions tests are passed too):
 ```
  === RUN   TestFinsClient

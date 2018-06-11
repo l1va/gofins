@@ -7,8 +7,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-//TODO: implement me
-
 func TestFinsClient(t *testing.T) {
 	plcAddr := ":9600"
 
