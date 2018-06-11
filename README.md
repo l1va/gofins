@@ -14,8 +14,8 @@ Library was tested with <b>Omron PLC NJ501-1300</b>. Mean time of the cycle requ
 Feel free to ask questions, raise issues and make pull requests!
 
 
-<b>PS. Build is ok</b> but Travis is failing to run tests with <b>go 1.10</b>
-(with earlier go versions tests are passed too):
+<b>PS. Build is ok</b> but Travis is randomly failing to run tests with <b>go 1.10</b>
+(with earlier go versions tests are passed too): [travis](https://travis-ci.org/l1va/gofins)
 ```
  === RUN   TestFinsClient
  2018/03/11 18:45:18 read udp 127.0.0.1:33746->127.0.0.1:9600: use of closed network connection
