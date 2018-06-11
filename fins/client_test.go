@@ -8,7 +8,7 @@ import (
 )
 
 func TestFinsClient(t *testing.T) {
-	plcAddr := ":9600"
+	plcAddr := ":59600"
 
 	toWrite := []uint16{5, 4, 3, 2, 1}
 
