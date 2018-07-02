@@ -1,8 +1,9 @@
 package fins
 
 import (
-	"fmt"
+	"encoding/binary"
 	"errors"
+	"fmt"
 )
 
 /*
@@ -93,19 +94,21 @@ func toBytes(data []uint16) []byte {
 	return res
 }
 
-func parseResponse(bytes []byte) (*Response, error) {
-	finishCode1 := bytes[12]
-	finishCode2 := bytes[13]
+func parseFrame(bytes []byte) (*Frame, error) {
+	h := parseHeader(bytes[:12])
+	p := parsePayload(bytes[12:])
+	endCode := binary.BigEndian.Uint16(bytes[12:13])
 
-	if finishCode1 != 0 || finishCode2 != 0 {
-		msg := fmt.Sprintln("failure code: ", finishCode1, ": ", finishCode2)
+	if endCode != EndCodeNormalCompletion {
+		msg := fmt.Sprintf("Failed with end code: 0x%x", endCode)
 		return nil, errors.New(msg)
 	}
 
-	return &Response{
-		sid:  bytes[9],
-		Data: toUint16(bytes[14:]),
-	}, nil
+	return NewFrame(h, p), nil
+}
+
+func parseHeader(bytes []byte) *Header {
+
 }
 
 func toUint16(data []byte) []uint16 {

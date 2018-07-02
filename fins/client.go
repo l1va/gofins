@@ -1,84 +1,116 @@
 package fins
 
 import (
+	"bufio"
+	"bytes"
+	"encoding/binary"
+	"fmt"
 	"log"
 	"net"
-	"fmt"
-	"bufio"
 	"sync"
 )
 
+// Client Omron FINS client
 type Client struct {
 	conn net.Conn
-	resp []chan Response
+	resp []chan response
 	sync.Mutex
-	sid  byte
+	dst FinsAddr
+	src FinsAddr
+	sid byte
 }
 
-type Response struct {
+type response struct {
 	sid  byte
-	Data []uint16
+	data []byte
 }
 
-func NewClient(plcAddr string) *Client {
+// NewClient creates a new Omron FINS client
+func NewClient(plcAddr string, dst FinsAddr, src FinsAddr) *Client {
 	c := new(Client)
+	c.dst = dst
+	c.src = src
 	conn, err := net.Dial("udp", plcAddr)
+
 	if err != nil {
 		log.Fatal(err)
 		panic(fmt.Sprintf("error resolving UDP port: %s\n", plcAddr))
 	}
 	c.conn = conn
-	c.resp = make([]chan Response, 256) //storage for all responses, sid is byte - only 256 values
+	c.resp = make([]chan response, 256) //storage for all responses, sid is byte - only 256 values
 	go c.listenLoop()
 
 	return c
 
 }
 
+// CloseConnection closes an Omron FINS connection
 func (c *Client) CloseConnection() {
 	c.conn.Close()
 }
 
 func (c *Client) incrementSid() byte {
 	c.Lock() //thread-safe sid incrementation
-	c.sid += 1
+	c.sid++
 	sid := c.sid
 	c.Unlock()
-	c.resp[sid] = make(chan Response) //clearing cell of storage for new response
+	c.resp[sid] = make(chan response) //clearing cell of storage for new response
 	return sid
 }
 
-func (c *Client) ReadD(startAddr uint16, readCount uint16) ([]uint16, error) {
+// ReadD reads from the PLC data area
+func (c *Client) ReadData(startAddr uint16, readCount uint16) ([]uint16, error) {
 	sid := c.incrementSid()
-	cmd := readDCommand(defaultHeader(sid), startAddr, readCount)
+	cmd := readDCommand(defaultHeader(c.dst, c.src, sid), startAddr, readCount)
 	return c.read(sid, cmd)
 }
 
-func (c *Client) ReadW(startAddr uint16, readCount uint16) ([]uint16, error) {
+// ReadD reads from the PLC data area
+func (c *Client) ReadDataBytes(startAddr uint16, readCount uint16) ([]byte, error) {
+	d, err := c.ReadData(startAddr, readCount)
+	bs := make([]byte, len(d)*2)
+	for i, b := range d {
+		binary.BigEndian.PutUint16(bs[i*2:i*2+2], b)
+	}
+	return bs, err
+}
+
+// ReadD reads from the PLC data area
+func (c *Client) ReadDataString(startAddr uint16, readCount uint16) (string, error) {
+	d, err := c.ReadDataBytes(startAddr, readCount)
+	n := bytes.Index(d, []byte{0})
+	s := string(d[:n])
+	return s, err
+}
+
+// ReadW reads from the PLC work area
+func (c *Client) ReadWork(startAddr uint16, readCount uint16) ([]uint16, error) {
 	sid := c.incrementSid()
-	cmd := readWCommand(defaultHeader(sid), startAddr, readCount)
+	cmd := readWCommand(defaultHeader(c.dst, c.src, sid), startAddr, readCount)
 	return c.read(sid, cmd)
 }
 
-func (c *Client) read(sid byte, cmd []byte) ([]uint16, error) {
+func (c *Client) read(sid byte, cmd []byte) ([]byte, error) {
 	_, err := c.conn.Write(cmd)
 	if err != nil {
 		return nil, err
 	}
 
 	ans := <-c.resp[sid]
-	return ans.Data, nil
+	return ans.data, nil
 }
 
-func (c *Client) WriteD(startAddr uint16, data []uint16) error {
+// WriteD writes to the PLC data area
+func (c *Client) WriteData(startAddr uint16, data []uint16) error {
 	sid := c.incrementSid()
-	cmd := writeDCommand(defaultHeader(sid), startAddr, data)
+	cmd := writeDCommand(defaultHeader(c.dst, c.src, sid), startAddr, data)
 	return c.write(sid, cmd)
 }
 
-func (c *Client) WriteW(startAddr uint16, data []uint16) error {
+// WriteW writes to the PLC work area
+func (c *Client) WriteWork(startAddr uint16, data []uint16) error {
 	sid := c.incrementSid()
-	cmd := writeWCommand(defaultHeader(sid), startAddr, data)
+	cmd := writeWCommand(defaultHeader(c.dst, c.src, sid), startAddr, data)
 	return c.write(sid, cmd)
 }
 
@@ -92,19 +124,21 @@ func (c *Client) write(sid byte, cmd []byte) error {
 	return nil
 }
 
-func (c *Client) ReadDAsync(startAddr uint16, readCount uint16, callback func(resp Response)) error {
+// ReadDAsync reads from the PLC data area asynchronously
+func (c *Client) ReadDataAsync(startAddr uint16, readCount uint16, callback func(resp response)) error {
 	sid := c.incrementSid()
-	cmd := readDCommand(defaultHeader(sid), startAddr, readCount)
+	cmd := readDCommand(defaultHeader(c.dst, c.src, sid), startAddr, readCount)
 	return c.asyncCommand(sid, cmd, callback)
 }
 
-func (c *Client) WriteDAsync(startAddr uint16, data []uint16, callback func(resp Response)) error {
+// WriteDAsync writes to the PLC data area asynchronously
+func (c *Client) WriteDataAsync(startAddr uint16, data []uint16, callback func(resp response)) error {
 	sid := c.incrementSid()
-	cmd := writeDCommand(defaultHeader(sid), startAddr, data)
+	cmd := writeDCommand(defaultHeader(c.dst, c.src, sid), startAddr, data)
 	return c.asyncCommand(sid, cmd, callback)
 }
 
-func (c *Client) asyncCommand(sid byte, cmd []byte, callback func(resp Response)) error {
+func (c *Client) asyncCommand(sid byte, cmd []byte, callback func(resp response)) error {
 	_, err := c.conn.Write(cmd)
 	if err != nil {
 		return err
@@ -113,18 +147,19 @@ func (c *Client) asyncCommand(sid byte, cmd []byte, callback func(resp Response)
 	return nil
 }
 
-func asyncResponse(ch chan Response, callback func(r Response)) {
+func asyncResponse(ch chan response, callback func(r response)) {
 	if callback != nil {
-		go func(ch chan Response, callback func(r Response)) {
+		go func(ch chan response, callback func(r response)) {
 			ans := <-ch
 			callback(ans)
 		}(ch, callback)
 	}
 }
 
-func (c *Client) WriteDNoResponse(startAddr uint16, data []uint16) error {
+// WriteDNoResponse writes to the PLC data area and doesn't request a response
+func (c *Client) WriteDataNoResponse(startAddr uint16, data []uint16) error {
 	sid := c.incrementSid()
-	cmd := writeDCommand(newHeaderNoResponse(sid), startAddr, data)
+	cmd := writeDCommand(newHeaderNoResponse(c.dst, c.src, sid), startAddr, data)
 	return c.asyncCommand(sid, cmd, nil)
 }
 

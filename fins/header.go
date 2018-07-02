@@ -1,86 +1,61 @@
 package fins
 
-// For now we have only one PLC - it means we do not need in any networks settings -
-// almost everywhere is 0.
 type Header struct {
 	icf byte
 	rsv byte
 	gct byte
-	dna byte
-	da1 byte
-	da2 byte
-	sna byte
-	sa1 byte
-	sa2 byte
+	dst FinsAddr
+	src FinsAddr
 	sid byte
 }
 
-func defaultHeader(sid byte) *Header {
+const (
+	icfBridgesBit          byte = 7
+	icfMessageTypeBit      byte = 6
+	icfResponseRequiredBit byte = 0
+)
+
+func (h *Header) IsResponseRequired() bool {
+	return h.icf&1<<icfResponseRequiredBit == 0
+}
+
+func (h *Header) FrameIsCommand() bool {
+	return h.icf&1<<icfMessageTypeBit == 0
+}
+
+func (h *Header) FrameIsResponse() bool {
+	return !h.FrameIsCommand()
+}
+
+func (h *Header) SetToRequireResponse() {
+	h.icf |= 1 << icfResponseRequiredBit
+}
+
+func (h *Header) SetToRequireNoResponse() {
+	h.icf &^= 1 << icfResponseRequiredBit
+}
+
+func (f *Header) Format() []byte {
+	return []byte{
+		f.icf, f.rsv, f.gct,
+		f.dst.Network, f.dst.Node, f.dst.Unit,
+		f.src.Network, f.src.Node, f.src.Unit,
+		f.sid}
+}
+
+func defaultHeader(dst FinsAddr, src FinsAddr, sid byte) *Header {
 	h := new(Header)
-	h.icf = icf()
-	h.rsv = rsv()
-	h.gct = gct()
-	h.dna = dstNetwork()
-	h.da1 = dstNode()
-	h.da2 = dstUnit()
-	h.sna = srcNetwork()
-	h.sa1 = srcNode()
-	h.sa2 = srcUnit()
+	h.icf = 0x80
+	h.rsv = 0x00
+	h.gct = 0x02
+	h.dst = dst
+	h.src = src
 	h.sid = sid
 	return h
 }
 
-func newHeaderNoResponse(sid byte) *Header {
-	h := defaultHeader(sid)
-	h.icf = icfNoResponse()
+func newHeaderNoResponse(dst FinsAddr, src FinsAddr, sid byte) *Header {
+	h := defaultHeader(dst, src, sid)
+	h.SetToRequireNoResponse()
 	return h
-}
-
-func (f *Header) Format() []byte {
-
-	return []byte{
-		f.icf, f.rsv, f.gct,
-		f.dna, f.da1, f.da2,
-		f.sna, f.sa1, f.sa2,
-		f.sid}
-}
-
-func icf() byte {
-	return 0x80 //128
-}
-
-func icfNoResponse() byte {
-	return 0x81 //129
-}
-
-func rsv() byte {
-	return 0
-}
-
-func gct() byte {
-	return 0x02
-}
-
-func dstNetwork() byte {
-	return 0
-}
-
-func dstNode() byte {
-	return 0
-}
-
-func dstUnit() byte {
-	return 0
-}
-
-func srcNetwork() byte {
-	return 0
-}
-
-func srcNode() byte {
-	return 0x22
-}
-
-func srcUnit() byte {
-	return 0
 }
