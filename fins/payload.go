@@ -1,5 +1,6 @@
 package fins
 
+// Payload A FINS frame payload
 type Payload struct {
 	CommandCode uint16
 	Data        []byte
@@ -29,7 +30,7 @@ const (
 	// Normal
 	EndCodeNormalCompletion uint16 = 0x0000
 
-	//  Local Node Error
+	// Local Node Error
 	EndCodeLocalNodeNotInNetwork       uint16 = 0x0101
 	EndCodeTokenTimeout                uint16 = 0x0102
 	EndCodeRetriesFailed               uint16 = 0x0103

@@ -1,5 +1,6 @@
 package fins
 
+// IoAddress A FINS IO address representing some type of data or work area within the PLC
 type IoAddress struct {
 	MemoryArea byte
 	Address    uint16
