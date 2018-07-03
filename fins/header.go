@@ -35,14 +35,6 @@ func (h *Header) SetToRequireNoResponse() {
 	h.icf &^= 1 << icfResponseRequiredBit
 }
 
-func (f *Header) Format() []byte {
-	return []byte{
-		f.icf, f.rsv, f.gct,
-		f.dst.Network, f.dst.Node, f.dst.Unit,
-		f.src.Network, f.src.Node, f.src.Unit,
-		f.sid}
-}
-
 func defaultHeader(dst FinsAddr, src FinsAddr, sid byte) *Header {
 	h := new(Header)
 	h.icf = 0x80

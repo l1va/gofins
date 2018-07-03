@@ -1,13 +1,14 @@
 package fins
 
 type Frame struct {
-	header  *Header
-	payload *Payload
+	Header  *Header
+	Payload *Payload
 }
 
-func NewFrame(header *Header, payload *Payload) *Frame {
-	f := &Frame{}
-	f.header = header
-	f.payload = payload
+func NewFrame(header Header, payload Payload) *Frame {
+	f := &Frame{
+		Header:  header,
+		Payload: payload,
+	}
 	return f
 }

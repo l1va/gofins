@@ -1,20 +1,29 @@
 package fins
 
-import (
-	"encoding/binary"
-)
-
 type Payload struct {
-	commandCode uint16
-	data        []byte
+	CommandCode uint16
+	Data        []byte
 }
 
-func parsePayload(bytes []byte) *Payload {
-	p := &Payload{}
-	p.commandCode = binary.BigEndian.Uint16(bytes[:2])
-	p.data = bytes[2:]
-	return p
-}
+const (
+	CommandCodeMemoryAreaRead         uint16 = 0x0101
+	CommandCodeMemoryAreaWrite        uint16 = 0x0102
+	CommandCodeMemoryAreaFill         uint16 = 0x0103
+	CommandCodeMultipleMemoryAreaRead uint16 = 0x0104
+	CommandCodeMemoryAreaTransfer     uint16 = 0x0105
+	CommandCodeParameterAreaRead      uint16 = 0x0201
+	CommandCodeParameterAreaWrite     uint16 = 0x0202
+	CommandCodeParameterAreaClear     uint16 = 0x0203
+	CommandCodeProgramAreaRead        uint16 = 0x0301
+	CommandCodeProgramAreaWrite       uint16 = 0x0302
+	CommandCodeProgramAreaClear       uint16 = 0x0303
+	CommandCodeRun                    uint16 = 0x0401
+	CommandCodeStop                   uint16 = 0x0402
+	CommandCodeCpuUnitDataRead        uint16 = 0x0501
+	CommandCodeConnectionDataRead     uint16 = 0x0502
+	CommandCodeCpuUnitStatusRead      uint16 = 0x0601
+	CommandCodeCycleTimeRead          uint16 = 0x0620
+)
 
 const (
 	// Normal
@@ -92,24 +101,4 @@ const (
 	EndCodeNoSuchDeviceClockMissing      uint16 = 0x2303
 
 	EndCodeCannotStartStopTableMissing uint16 = 0x2401
-)
-
-const (
-	CommandCodeMemoryAreaRead         uint16 = 0x0101
-	CommandCodeMemoryAreaWrite        uint16 = 0x0102
-	CommandCodeMemoryAreaFill         uint16 = 0x0103
-	CommandCodeMultipleMemoryAreaRead uint16 = 0x0104
-	CommandCodeMemoryAreaTransfer     uint16 = 0x0105
-	CommandCodeParameterAreaRead      uint16 = 0x0201
-	CommandCodeParameterAreaWrite     uint16 = 0x0202
-	CommandCodeParameterAreaClear     uint16 = 0x0203
-	CommandCodeProgramAreaRead        uint16 = 0x0301
-	CommandCodeProgramAreaWrite       uint16 = 0x0302
-	CommandCodeProgramAreaClear       uint16 = 0x0303
-	CommandCodeRun                    uint16 = 0x0401
-	CommandCodeStop                   uint16 = 0x0402
-	CommandCodeCpuUnitDataRead        uint16 = 0x0501
-	CommandCodeConnectionDataRead     uint16 = 0x0502
-	CommandCodeCpuUnitStatusRead      uint16 = 0x0601
-	CommandCodeCycleTimeRead          uint16 = 0x0620
 )
