@@ -4,18 +4,18 @@ import (
 	"encoding/binary"
 )
 
-func readCommand(ioAddr IoAddress, readCount uint16) *Payload {
+func readCommand(ioAddr IOAddress, readCount uint16) *Payload {
 	p := &Payload{
 		CommandCode: CommandCodeMemoryAreaRead,
 		Data:        make([]byte, 0, 6),
 	}
-	p.Data = append(p.Data, encodeIoAddress(ioAddr)...)
+	p.Data = append(p.Data, encodeIOAddress(ioAddr)...)
 	p.Data = append(p.Data, []byte{0, 0}...)
 	binary.BigEndian.PutUint16(p.Data[4:6], readCount)
 	return p
 }
 
-func encodeIoAddress(ioAddr IoAddress) []byte {
+func encodeIOAddress(ioAddr IOAddress) []byte {
 	bytes := make([]byte, 4, 4)
 	bytes[0] = ioAddr.MemoryArea
 	binary.BigEndian.PutUint16(bytes[1:3], ioAddr.Address)

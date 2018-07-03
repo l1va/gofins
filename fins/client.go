@@ -41,7 +41,7 @@ func (c *Client) CloseConnection() {
 // ReadBytes Reads from the PLC data area
 // func (c *Client) ReadBytes(memoryArea byte, address uint16, readCount uint16) ([]byte, error) {
 // 	sid := c.incrementSid()
-// 	cmd := readCommand(IoAddress{
+// 	cmd := readCommand(IOAddress{
 // 		MemoryArea: memoryArea,
 // 		Address:    address,
 // 		BitOffset:  0x00,
@@ -58,7 +58,7 @@ func (c *Client) CloseConnection() {
 // ReadWords reads from the PLC data area
 func (c *Client) ReadWords(memoryArea byte, address uint16, readCount uint16) (*Payload, error) {
 	c.incrementSid()
-	cmd := readCommand(IoAddress{
+	cmd := readCommand(IOAddress{
 		MemoryArea: memoryArea,
 		Address:    address,
 		BitOffset:  0x00,
