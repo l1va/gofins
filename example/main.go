@@ -11,8 +11,19 @@ import (
 
 func main() {
 
-	plcAddr := "192.168.250.10:9600"
-	conn, err := net.Dial("udp", plcAddr)
+	plcAddr := &net.UDPAddr{
+		IP:   net.ParseIP("192.168.250.10"),
+		Port: 9600,
+	}
+	localClientAddr := &net.UDPAddr{
+		IP:   net.ParseIP("192.168.250.2"),
+		Port: 9600,
+	}
+	localServerAddr := &net.UDPAddr{
+		IP:   net.ParseIP("192.168.250.3"),
+		Port: 9600,
+	}
+	conn, err := net.DialUDP("udp", plcAddr, localClientAddr)
 
 	if err != nil {
 		log.Fatal(err)
@@ -52,5 +63,5 @@ func main() {
 	// c.SetBit(fins.MemoryAreaDMBit, 24003, 1)
 	// c.ResetBit(fins.MemoryAreaDMBit, 24003, 0)
 	// c.ToggleBit(fins.MemoryAreaDMBit, 24003, 2)
-	c.WriteString(fins.MemoryAreaDMWord, 10000, 10, "WeLoveGoLang!")
+	c.WriteString(fins.MemoryAreaDMWord, 10000, 10, "We Love Go!")
 }
