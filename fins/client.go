@@ -273,27 +273,6 @@ func (c *Client) bitTwiddle(memoryArea byte, address uint16, bitOffset byte, val
 	return nil
 }
 
-// ReadDataAsync reads from the PLC data area asynchronously
-// func (c *Client) ReadDataAsync(startAddr uint16, readCount uint16, callback func(resp response)) error {
-// 	sid := c.incrementSid()
-// 	cmd := readDCommand(defaultHeader(c.dst, c.src, sid), startAddr, readCount)
-// 	return c.asyncCommand(sid, cmd, callback)
-// }
-
-// WriteDataAsync writes to the PLC data area asynchronously
-// func (c *Client) WriteDataAsync(startAddr uint16, data []uint16, callback func(resp response)) error {
-// 	sid := c.incrementSid()
-// 	cmd := writeDCommand(defaultHeader(c.dst, c.src, sid), startAddr, data)
-// 	return c.asyncCommand(sid, cmd, callback)
-// }
-
-// WriteDataNoResponse writes to the PLC data area and doesn't request a response
-// func (c *Client) WriteDataNoResponse(startAddr uint16, data []uint16) error {
-// 	sid := c.incrementSid()
-// 	cmd := writeDCommand(newHeaderNoResponse(c.dst, c.src, sid), startAddr, data)
-// 	return c.asyncCommand(sid, cmd, nil)
-// }
-
 // ErrIncompatibleMemoryArea Error when the memory area is incompatible with the data type to be read
 var ErrIncompatibleMemoryArea = errors.New("The memory area is incompatible with the data type to be read")
 
@@ -367,6 +346,20 @@ func checkIsBitMemoryArea(memoryArea byte) bool {
 	return false
 }
 
+// @ToDo Asynchronous functions
+// ReadDataAsync reads from the PLC data area asynchronously
+// func (c *Client) ReadDataAsync(startAddr uint16, readCount uint16, callback func(resp response)) error {
+// 	sid := c.incrementSid()
+// 	cmd := readDCommand(defaultHeader(c.dst, c.src, sid), startAddr, readCount)
+// 	return c.asyncCommand(sid, cmd, callback)
+// }
+
+// WriteDataAsync writes to the PLC data area asynchronously
+// func (c *Client) WriteDataAsync(startAddr uint16, data []uint16, callback func(resp response)) error {
+// 	sid := c.incrementSid()
+// 	cmd := writeDCommand(defaultHeader(c.dst, c.src, sid), startAddr, data)
+// 	return c.asyncCommand(sid, cmd, callback)
+// }
 // func (c *Client) asyncCommand(sid byte, cmd []byte, callback func(resp response)) error {
 // 	_, err := c.conn.Write(cmd)
 // 	if err != nil {

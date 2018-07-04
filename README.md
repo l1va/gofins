@@ -1,4 +1,4 @@
-# gofins
+# GoFINS
 
 [![Build Status](https://travis-ci.org/l1va/gofins.svg?branch=master)](https://travis-ci.org/l1va/gofins)
 
