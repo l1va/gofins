@@ -5,14 +5,26 @@ import (
 	"errors"
 )
 
-func readCommand(ioAddr IOAddress, readCount uint16) *Payload {
+func readCommand(ioAddr IOAddress, itemCount uint16) *Payload {
 	p := &Payload{
 		CommandCode: CommandCodeMemoryAreaRead,
 		Data:        make([]byte, 0, 6),
 	}
 	p.Data = append(p.Data, encodeIOAddress(ioAddr)...)
 	p.Data = append(p.Data, []byte{0, 0}...)
-	binary.BigEndian.PutUint16(p.Data[4:6], readCount)
+	binary.BigEndian.PutUint16(p.Data[4:6], itemCount)
+	return p
+}
+
+func writeCommand(ioAddr IOAddress, itemCount uint16, bytes []byte) *Payload {
+	p := &Payload{
+		CommandCode: CommandCodeMemoryAreaWrite,
+		Data:        make([]byte, 0, 6+len(bytes)),
+	}
+	p.Data = append(p.Data, encodeIOAddress(ioAddr)...)
+	p.Data = append(p.Data, []byte{0, 0}...)
+	binary.BigEndian.PutUint16(p.Data[4:6], itemCount)
+	p.Data = append(p.Data, bytes...)
 	return p
 }
 
@@ -110,30 +122,8 @@ func encodePayload(payload *Payload) []byte {
 	return bytes
 }
 
-func toUint16(data []byte) []uint16 {
-	res := make([]uint16, len(data)/2)
-	for i := 0; i < len(data); i += 2 {
-		upper := uint16(data[i]) << 8
-		lower := uint16(data[i+1])
-		res[i/2] = (upper | lower)
-	}
-	return res
-}
-
-func toBytes(data []uint16) []byte {
-	res := make([]byte, len(data)*2)
-	for i := 0; i < len(data); i++ {
-		res[2*i] = byte(data[i] >> 8)
-		res[2*i+1] = byte(data[i])
-	}
-	return res
-}
-
-// ErrBCDBadDigit BCD bad digit error
-var ErrBCDBadDigit = errors.New("Bad digit in BCD decoding")
-
-// ErrBCDOverflow BCD overflow error
-var ErrBCDOverflow = errors.New("Overflow occurred in BCD decoding")
+var errBCDBadDigit = errors.New("Bad digit in BCD decoding")
+var errBCDOverflow = errors.New("Overflow occurred in BCD decoding")
 
 func encodeBCD(x uint64) []byte {
 	if x == 0 {
@@ -161,7 +151,7 @@ func encodeBCD(x uint64) []byte {
 func timesTenPlusCatchingOverflow(x uint64, digit uint64) (uint64, error) {
 	x5 := x<<2 + x
 	if int64(x5) < 0 || x5<<1 > ^digit {
-		return 0, ErrBCDOverflow
+		return 0, errBCDOverflow
 	}
 	return x5<<1 + digit, nil
 }
@@ -170,7 +160,7 @@ func decodeBCD(bcd []byte) (x uint64, err error) {
 	for i, b := range bcd {
 		hi, lo := uint64(b>>4), uint64(b&0x0f)
 		if hi > 9 {
-			return 0, ErrBCDBadDigit
+			return 0, errBCDBadDigit
 		}
 		x, err = timesTenPlusCatchingOverflow(x, hi)
 		if err != nil {
@@ -180,7 +170,7 @@ func decodeBCD(bcd []byte) (x uint64, err error) {
 			return x, nil
 		}
 		if lo > 9 {
-			return 0, ErrBCDBadDigit
+			return 0, errBCDBadDigit
 		}
 		x, err = timesTenPlusCatchingOverflow(x, lo)
 		if err != nil {
