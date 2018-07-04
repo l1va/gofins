@@ -36,34 +36,6 @@ func encodeIOAddress(ioAddr IOAddress) []byte {
 	return bytes
 }
 
-// func writeDataCommand(header *Header, startAddress uint16, data []uint16) *Payload {
-// 	return writeCommand(MEMORY_AREA_DATA, header, startAddress, data)
-// }
-
-// func writeWorkCommand(header *Header, startAddress uint16, data []uint16) *Payload {
-// 	return writeCommand(MEMORY_AREA_WORK, header, startAddress, data)
-// }
-
-// func writeCommand(memoryArea byte, header *Header, startAddress uint16, data []uint16) *Payload {
-// 	var addressBit byte = 0
-// 	addressLower := byte(startAddress)
-// 	addressUpper := byte(startAddress >> 8)
-// 	dataLen := len(data)
-// 	lenLower := byte(dataLen)
-// 	lenUpper := byte(dataLen >> 8)
-
-// 	paramsBytes := []byte{
-// 		memoryArea,
-// 		addressUpper, addressLower,
-// 		addressBit,
-// 		lenUpper, lenLower}
-
-// 	bytes1 := append(header.Format(), CommandCodeMemoryAreaWrite...)
-// 	bytes2 := append(bytes1, paramsBytes...)
-// 	bytes3 := append(bytes2, toBytes(data)...)
-// 	return bytes3
-// }
-
 func decodeFrame(bytes []byte) *Frame {
 	frame := &Frame{
 		Header:  decodeHeader(bytes[:10]),

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"time"
 
 	"github.com/siyka-au/gofins/fins"
 )
@@ -15,7 +16,7 @@ func main() {
 
 	if err != nil {
 		log.Fatal(err)
-		panic(fmt.Sprintf("error resolving UDP port: %s\n", plcAddr))
+		panic(fmt.Sprintf("Error resolving UDP port: %s\n", plcAddr))
 	}
 
 	c := fins.NewClient(&conn, fins.Address{
@@ -36,8 +37,8 @@ func main() {
 	// fmt.Println(s)
 	// fmt.Println(len(s))
 
-	// t, _ := c.ReadClock()
-	// fmt.Println(t.Format(time.RFC3339))
+	t, _ := c.ReadClock()
+	fmt.Println(t.Format(time.RFC3339))
 
 	// b, _ := c.ReadBits(fins.MemoryAreaDMWord, 10473, 2, 1)
 	// fmt.Println(b)
