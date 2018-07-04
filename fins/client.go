@@ -2,10 +2,13 @@ package fins
 
 import (
 	"bufio"
+	"bytes"
+	"encoding/binary"
 	"fmt"
 	"log"
 	"net"
 	"sync"
+	"time"
 )
 
 // Client Omron FINS client
@@ -13,13 +16,16 @@ type Client struct {
 	conn net.Conn
 	resp []chan Frame
 	sync.Mutex
-	header *Header
+	dst Address
+	src Address
+	sid byte
 }
 
 // NewClient creates a new Omron FINS client
 func NewClient(plcAddr string, dst Address, src Address) *Client {
 	c := new(Client)
-	c.header = defaultHeader(dst, src, 0)
+	c.dst = dst
+	c.src = src
 	conn, err := net.Dial("udp", plcAddr)
 
 	if err != nil {
@@ -38,51 +44,111 @@ func (c *Client) CloseConnection() {
 	c.conn.Close()
 }
 
-// ReadBytes Reads from the PLC data area
-// func (c *Client) ReadBytes(memoryArea byte, address uint16, readCount uint16) ([]byte, error) {
-// 	sid := c.incrementSid()
-// 	cmd := readCommand(IOAddress{
+// ReadBits reads from the PLC data area
+// func (c *Client) ReadBits(memoryArea byte, address uint16, bitOffset byte, readCount uint16) ([]bool, error) {
+// 	header := c.nextHeader()
+// 	command := readCommand(IOAddress{
 // 		MemoryArea: memoryArea,
 // 		Address:    address,
-// 		BitOffset:  0x00,
+// 		BitOffset:  bitOffset,
 // 	}, readCount)
-// 	return c.read(c.header.sid, cmd)
-// }
+// 	r, e := c.sendCommand(header, command)
+// 	if e != nil {
+// 		return nil, e
+// 	}
 
-// ReadWord reads from the PLC data area
-// func (c *Client) ReadWord(memoryArea byte, address uint16) (uint16, error) {
-// 	w, e := c.ReadWords(memoryArea, address, 1)
-// 	return w[0], e
+// 	data := make([]uint16, readCount, readCount)
+// 	for i := 0; i < int(readCount); i++ {
+// 		data[i] = binary.BigEndian.Uint16(r.Data[i*2 : i*2+2])
+// 	}
+
+// 	return data, nil
 // }
 
 // ReadWords reads from the PLC data area
-func (c *Client) ReadWords(memoryArea byte, address uint16, readCount uint16) (*Payload, error) {
-	c.incrementSid()
-	cmd := readCommand(IOAddress{
+func (c *Client) ReadWords(memoryArea byte, address uint16, readCount uint16) ([]uint16, error) {
+	header := c.nextHeader()
+	command := readCommand(IOAddress{
 		MemoryArea: memoryArea,
 		Address:    address,
 		BitOffset:  0x00,
 	}, readCount)
-	return c.sendCommand(cmd)
+	r, e := c.sendCommand(header, command)
+	if e != nil {
+		return nil, e
+	}
+
+	data := make([]uint16, readCount, readCount)
+	for i := 0; i < int(readCount); i++ {
+		data[i] = binary.BigEndian.Uint16(r.Data[i*2 : i*2+2])
+	}
+
+	return data, nil
 }
 
 // ReadString reads from the PLC data area
-// func (c *Client) ReadString(memoryArea byte, address uint16, readCount uint16) (string, error) {
-// 	d, err := c.ReadDataBytes(startAddr, readCount)
-// 	n := bytes.Index(d, []byte{0})
-// 	s := string(d[:n])
-// 	return s, err
-// }
+func (c *Client) ReadString(memoryArea byte, address uint16, readCount uint16) (*string, error) {
+	header := c.nextHeader()
+	command := readCommand(IOAddress{
+		MemoryArea: memoryArea,
+		Address:    address,
+		BitOffset:  0x00,
+	}, readCount)
+	r, e := c.sendCommand(header, command)
+	if e != nil {
+		return nil, e
+	}
 
-func (c *Client) sendCommand(payload *Payload) (*Payload, error) {
-	bytes := encodeFrame(NewFrame(c.header, payload))
+	n := bytes.Index(r.Data, []byte{0})
+	s := string(r.Data[:n])
+	return &s, nil
+}
+
+// ReadClock reads the PLC clock
+func (c *Client) ReadClock() (*time.Time, error) {
+	header := c.nextHeader()
+	command := new(Payload)
+	command.CommandCode = CommandCodeClockRead
+	command.Data = []byte{}
+	r, e := c.sendCommand(header, command)
+	if e != nil {
+		return nil, e
+	}
+	year, _ := decodeBCD(r.Data[0:1])
+	if year < 50 {
+		year += 2000
+	} else {
+		year += 1900
+	}
+	month, _ := decodeBCD(r.Data[1:2])
+	day, _ := decodeBCD(r.Data[2:3])
+	hour, _ := decodeBCD(r.Data[3:4])
+	minute, _ := decodeBCD(r.Data[4:5])
+	second, _ := decodeBCD(r.Data[5:6])
+
+	t := time.Date(
+		int(year), time.Month(month), int(day), int(hour), int(minute), int(second),
+		0, // nanosecond
+		time.Local,
+	)
+
+	return &t, nil
+}
+
+func (c *Client) sendCommand(header *Header, payload *Payload) (*Response, error) {
+	bytes := encodeFrame(NewFrame(header, payload))
 	_, err := c.conn.Write(bytes)
 	if err != nil {
 		return nil, err
 	}
 
-	ans := <-c.resp[c.header.sid]
-	return ans.Payload, nil
+	r := <-c.resp[header.sid]
+	response := &Response{
+		CommandCode: r.Payload.CommandCode,
+		EndCode:     binary.BigEndian.Uint16(r.Payload.Data[:2]),
+		Data:        r.Payload.Data[2:],
+	}
+	return response, nil
 }
 
 // WriteData writes to the PLC data area
@@ -130,11 +196,19 @@ func (c *Client) sendCommand(payload *Payload) (*Payload, error) {
 // 	return c.asyncCommand(sid, cmd, nil)
 // }
 
-func (c *Client) incrementSid() {
+func (c *Client) nextHeader() *Header {
+	sid := c.incrementSid()
+	header := defaultHeader(c.dst, c.src, sid)
+	return header
+}
+
+func (c *Client) incrementSid() byte {
 	c.Lock() //thread-safe sid incrementation
-	c.header.sid++
+	c.sid++
+	sid := c.sid
 	c.Unlock()
-	c.resp[c.header.sid] = make(chan Frame) //clearing cell of storage for new response
+	c.resp[sid] = make(chan Frame) //clearing cell of storage for new response
+	return sid
 }
 
 func (c *Client) listenLoop() {
