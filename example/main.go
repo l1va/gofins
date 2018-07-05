@@ -2,19 +2,15 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"net"
 	"time"
 
+	"github.com/robfig/cron"
 	"github.com/siyka-au/gofins/fins"
 )
 
 func main() {
 
-	plcAddr := &net.UDPAddr{
-		IP:   net.ParseIP("192.168.250.10"),
-		Port: 9600,
-	}
 	localClientAddr := &net.UDPAddr{
 		IP:   net.ParseIP("192.168.250.2"),
 		Port: 9600,
@@ -23,23 +19,24 @@ func main() {
 		IP:   net.ParseIP("192.168.250.3"),
 		Port: 9600,
 	}
-	conn, err := net.DialUDP("udp", plcAddr, localClientAddr)
-
-	if err != nil {
-		log.Fatal(err)
-		panic(fmt.Sprintf("Error resolving UDP port: %s\n", plcAddr))
+	plcAddr := &net.UDPAddr{
+		IP:   net.ParseIP("192.168.250.10"),
+		Port: 9600,
 	}
 
-	c := fins.NewClient(&conn, fins.Address{
-		Network: 0,
-		Node:    10,
-		Unit:    0,
-	}, fins.Address{
-		Network: 0,
-		Node:    2,
-		Unit:    0,
-	})
-	defer c.CloseConnection()
+	c, e := fins.NewClient(localClientAddr, plcAddr, fins.NewAddress(0, 10, 0), fins.NewAddress(0, 2, 0))
+	defer c.Close()
+	if e != nil {
+		panic(e)
+	}
+
+	s, e := fins.NewServer(localServerAddr, fins.NewAddress(0, 3, 0))
+	if e != nil {
+		panic(e)
+	}
+
+	defer c.Close()
+	defer s.Close()
 
 	// z, _ := c.ReadWords(fins.MemoryAreaDMWord, 24000, 2)
 	// fmt.Println(z)
@@ -47,9 +44,6 @@ func main() {
 	// s, _ := c.ReadString(fins.MemoryAreaDMWord, 10000, 10)
 	// fmt.Println(s)
 	// fmt.Println(len(s))
-
-	t, _ := c.ReadClock()
-	fmt.Println(t.Format(time.RFC3339))
 
 	// b, _ := c.ReadBits(fins.MemoryAreaDMWord, 10473, 2, 1)
 	// fmt.Println(b)
@@ -63,5 +57,19 @@ func main() {
 	// c.SetBit(fins.MemoryAreaDMBit, 24003, 1)
 	// c.ResetBit(fins.MemoryAreaDMBit, 24003, 0)
 	// c.ToggleBit(fins.MemoryAreaDMBit, 24003, 2)
-	c.WriteString(fins.MemoryAreaDMWord, 10000, 10, "We Love Go!")
+
+	cron := cron.New()
+
+	// s := rasc.NewShelter()
+
+	cron.AddFunc("*/5 * * * * *", func() {
+		t, _ := c.ReadClock()
+		fmt.Printf("Setting PLC time to: %s\n", t.Format(time.RFC3339))
+		c.WriteString(fins.MemoryAreaDMWord, 10000, 10, t.Format(time.RFC3339))
+	})
+
+	cron.Start()
+
+	for {
+	}
 }

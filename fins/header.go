@@ -5,8 +5,8 @@ type Header struct {
 	icf byte
 	rsv byte
 	gct byte
-	dst Address
-	src Address
+	dst *Address
+	src *Address
 	sid byte
 }
 
@@ -41,7 +41,23 @@ func (h *Header) SetToRequireNoResponse() {
 	h.icf &^= 1 << icfResponseRequiredBit
 }
 
-func defaultHeader(dst Address, src Address, sid byte) *Header {
+func (h *Header) GatewayCount() byte {
+	return h.gct
+}
+
+func (h *Header) SourceAddress() Address {
+	return *h.src
+}
+
+func (h *Header) DestinationAddress() Address {
+	return *h.dst
+}
+
+func (h *Header) ServiceID() byte {
+	return h.sid
+}
+
+func defaultHeader(dst *Address, src *Address, sid byte) *Header {
 	h := new(Header)
 	h.icf = 0x80
 	h.rsv = 0x00
@@ -52,7 +68,7 @@ func defaultHeader(dst Address, src Address, sid byte) *Header {
 	return h
 }
 
-func newHeaderNoResponse(dst Address, src Address, sid byte) *Header {
+func newHeaderNoResponse(dst *Address, src *Address, sid byte) *Header {
 	h := defaultHeader(dst, src, sid)
 	h.SetToRequireNoResponse()
 	return h

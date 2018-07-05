@@ -5,48 +5,52 @@ import (
 	"errors"
 )
 
-func readCommand(ioAddr IOAddress, itemCount uint16) *Payload {
-	p := &Payload{
-		CommandCode: CommandCodeMemoryAreaRead,
-		Data:        make([]byte, 0, 6),
-	}
-	p.Data = append(p.Data, encodeIOAddress(ioAddr)...)
-	p.Data = append(p.Data, []byte{0, 0}...)
-	binary.BigEndian.PutUint16(p.Data[4:6], itemCount)
-	return p
+func readCommand(ioAddr *IOAddress, itemCount uint16) *Command {
+	commandData := make([]byte, 0, 6)
+	commandData = append(commandData, encodeIOAddress(ioAddr)...)
+	commandData = append(commandData, []byte{0, 0}...)
+	binary.BigEndian.PutUint16(commandData[4:6], itemCount)
+	return NewCommand(CommandCodeMemoryAreaRead, commandData)
 }
 
-func writeCommand(ioAddr IOAddress, itemCount uint16, bytes []byte) *Payload {
-	p := &Payload{
-		CommandCode: CommandCodeMemoryAreaWrite,
-		Data:        make([]byte, 0, 6+len(bytes)),
-	}
-	p.Data = append(p.Data, encodeIOAddress(ioAddr)...)
-	p.Data = append(p.Data, []byte{0, 0}...)
-	binary.BigEndian.PutUint16(p.Data[4:6], itemCount)
-	p.Data = append(p.Data, bytes...)
-	return p
+func writeCommand(ioAddr *IOAddress, itemCount uint16, bytes []byte) *Command {
+	commandData := make([]byte, 0, 6+len(bytes))
+	commandData = append(commandData, encodeIOAddress(ioAddr)...)
+	commandData = append(commandData, []byte{0, 0}...)
+	binary.BigEndian.PutUint16(commandData[4:6], itemCount)
+	commandData = append(commandData, bytes...)
+	return NewCommand(CommandCodeMemoryAreaWrite, commandData)
 }
 
-func encodeIOAddress(ioAddr IOAddress) []byte {
+func encodeIOAddress(ioAddr *IOAddress) []byte {
 	bytes := make([]byte, 4, 4)
-	bytes[0] = ioAddr.MemoryArea
-	binary.BigEndian.PutUint16(bytes[1:3], ioAddr.Address)
-	bytes[3] = ioAddr.BitOffset
+	bytes[0] = ioAddr.MemoryArea()
+	binary.BigEndian.PutUint16(bytes[1:3], ioAddr.Address())
+	bytes[3] = ioAddr.BitOffset()
 	return bytes
 }
 
 func decodeFrame(bytes []byte) *Frame {
-	frame := &Frame{
-		Header:  decodeHeader(bytes[:10]),
-		Payload: decodePayload(bytes[10:]),
+	header := decodeHeader(bytes[0:10])
+	var payload Payload
+	if header.FrameIsCommand() {
+		payload = decodeCommand(bytes[10:])
+	} else if header.FrameIsResponse() {
+		payload = decodeResponse(bytes[10:])
 	}
+	frame := NewFrame(header, payload)
 	return frame
 }
 
 func encodeFrame(f *Frame) []byte {
-	bytes := encodeHeader(f.Header)
-	bytes = append(bytes, encodePayload(f.Payload)...)
+	bytes := encodeHeader(f.Header())
+	var payloadData []byte
+	if f.Header().FrameIsCommand() {
+		payloadData = encodeCommand(f.Payload().(*Command))
+	} else if f.Header().FrameIsResponse() {
+		payloadData = encodeResponse(f.Payload().(*Response))
+	}
+	bytes = append(bytes, payloadData...)
 	return bytes
 }
 
@@ -55,16 +59,8 @@ func decodeHeader(bytes []byte) *Header {
 		icf: bytes[0],
 		rsv: bytes[1],
 		gct: bytes[2],
-		dst: Address{
-			Network: bytes[3],
-			Node:    bytes[4],
-			Unit:    bytes[5],
-		},
-		src: Address{
-			Network: bytes[6],
-			Node:    bytes[7],
-			Unit:    bytes[8],
-		},
+		dst: NewAddress(bytes[3], bytes[4], bytes[5]),
+		src: NewAddress(bytes[6], bytes[7], bytes[8]),
 		sid: bytes[9],
 	}
 	return header
@@ -73,24 +69,37 @@ func decodeHeader(bytes []byte) *Header {
 func encodeHeader(h *Header) []byte {
 	bytes := []byte{
 		h.icf, h.rsv, h.gct,
-		h.dst.Network, h.dst.Node, h.dst.Unit,
-		h.src.Network, h.src.Node, h.src.Unit,
+		h.dst.Network(), h.dst.Node(), h.dst.Unit(),
+		h.src.Network(), h.src.Node(), h.src.Unit(),
 		h.sid}
 	return bytes
 }
 
-func decodePayload(bytes []byte) *Payload {
-	payload := &Payload{
-		CommandCode: binary.BigEndian.Uint16(bytes[:2]),
-		Data:        bytes[2:],
-	}
-	return payload
+func decodeCommand(bytes []byte) *Command {
+	return NewCommand(
+		binary.BigEndian.Uint16(bytes[0:2]),
+		bytes[2:])
 }
 
-func encodePayload(payload *Payload) []byte {
-	bytes := make([]byte, 2, 2+len(payload.Data))
-	binary.BigEndian.PutUint16(bytes, payload.CommandCode)
-	bytes = append(bytes, payload.Data...)
+func encodeCommand(command *Command) []byte {
+	bytes := make([]byte, 2, 2+len(command.Data()))
+	binary.BigEndian.PutUint16(bytes[0:2], command.CommandCode())
+	bytes = append(bytes, command.Data()...)
+	return bytes
+}
+
+func decodeResponse(bytes []byte) *Response {
+	return NewResponse(
+		binary.BigEndian.Uint16(bytes[0:2]),
+		binary.BigEndian.Uint16(bytes[2:4]),
+		bytes[4:])
+}
+
+func encodeResponse(response *Response) []byte {
+	bytes := make([]byte, 4, 4+len(response.Data()))
+	binary.BigEndian.PutUint16(bytes[0:2], response.CommandCode())
+	binary.BigEndian.PutUint16(bytes[2:4], response.EndCode())
+	bytes = append(bytes, response.Data()...)
 	return bytes
 }
 
