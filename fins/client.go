@@ -64,8 +64,8 @@ func (c *Client) ReadWords(memoryArea byte, address uint16, readCount uint16) ([
 	return data, nil
 }
 
-// ReadString Reads a string from the PLC data area
-func (c *Client) ReadString(memoryArea byte, address uint16, readCount uint16) (*string, error) {
+// ReadBytes Reads a string from the PLC data area
+func (c *Client) ReadBytes(memoryArea byte, address uint16, readCount uint16) ([]byte, error) {
 	if checkIsWordMemoryArea(memoryArea) == false {
 		return nil, ErrIncompatibleMemoryArea
 	}
@@ -76,8 +76,17 @@ func (c *Client) ReadString(memoryArea byte, address uint16, readCount uint16) (
 		return nil, e
 	}
 
-	n := bytes.Index(r.Data(), []byte{0})
-	s := string(r.Data()[:n])
+	return r.Data(), nil
+}
+
+// ReadString Reads a string from the PLC data area
+func (c *Client) ReadString(memoryArea byte, address uint16, readCount uint16) (*string, error) {
+	data, e := c.ReadBytes(memoryArea, address, readCount)
+	if e != nil {
+		return nil, e
+	}
+	n := bytes.Index(data, []byte{0})
+	s := string(data[:n])
 	return &s, nil
 }
 

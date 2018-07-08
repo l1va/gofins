@@ -3,9 +3,7 @@ package main
 import (
 	"fmt"
 	"net"
-	"time"
 
-	"github.com/robfig/cron"
 	"github.com/siyka-au/gofins/fins"
 )
 
@@ -15,10 +13,10 @@ func main() {
 		IP:   net.ParseIP("192.168.250.2"),
 		Port: 9600,
 	}
-	localServerAddr := &net.UDPAddr{
-		IP:   net.ParseIP("192.168.250.3"),
-		Port: 9600,
-	}
+	// localServerAddr := &net.UDPAddr{
+	// 	IP:   net.ParseIP("192.168.250.3"),
+	// 	Port: 9600,
+	// }
 	plcAddr := &net.UDPAddr{
 		IP:   net.ParseIP("192.168.250.10"),
 		Port: 9600,
@@ -30,16 +28,16 @@ func main() {
 		panic(e)
 	}
 
-	s, e := fins.NewServer(localServerAddr, fins.NewAddress(0, 3, 0))
-	if e != nil {
-		panic(e)
-	}
+	// s, e := fins.NewServer(localServerAddr, fins.NewAddress(0, 3, 0))
+	// if e != nil {
+	// 	panic(e)
+	// }
 
 	defer c.Close()
-	defer s.Close()
+	// defer s.Close()
 
-	// z, _ := c.ReadWords(fins.MemoryAreaDMWord, 24000, 2)
-	// fmt.Println(z)
+	z, _ := c.ReadWords(fins.MemoryAreaDMWord, 10000, 500)
+	fmt.Println(z)
 
 	// s, _ := c.ReadString(fins.MemoryAreaDMWord, 10000, 10)
 	// fmt.Println(s)
@@ -58,17 +56,14 @@ func main() {
 	// c.ResetBit(fins.MemoryAreaDMBit, 24003, 0)
 	// c.ToggleBit(fins.MemoryAreaDMBit, 24003, 2)
 
-	cron := cron.New()
-
+	// cron := cron.New()
 	// s := rasc.NewShelter()
-
-	cron.AddFunc("*/5 * * * * *", func() {
-		t, _ := c.ReadClock()
-		fmt.Printf("Setting PLC time to: %s\n", t.Format(time.RFC3339))
-		c.WriteString(fins.MemoryAreaDMWord, 10000, 10, t.Format(time.RFC3339))
-	})
-
-	cron.Start()
+	// cron.AddFunc("*/5 * * * * *", func() {
+	// 	t, _ := c.ReadClock()
+	// 	fmt.Printf("Setting PLC time to: %s\n", t.Format(time.RFC3339))
+	// 	c.WriteString(fins.MemoryAreaDMWord, 10000, 10, t.Format(time.RFC3339))
+	// })
+	// cron.Start()
 
 	for {
 	}
