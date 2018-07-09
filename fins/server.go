@@ -1,18 +1,20 @@
 package fins
 
 import (
-	"encoding/hex"
 	"fmt"
 	"net"
 )
 
 // Server Omron FINS server (PLC emulator)
 type Server struct {
-	conn *net.UDPConn
-	addr *Address
+	conn    *net.UDPConn
+	addr    *Address
+	handler CommandHandler
 }
 
-func NewServer(udpAddr *net.UDPAddr, addr *Address) (*Server, error) {
+type CommandHandler func(*Command) *Response
+
+func NewServer(udpAddr *net.UDPAddr, addr *Address, handler CommandHandler) (*Server, error) {
 	s := new(Server)
 
 	conn, err := net.ListenUDP("udp", udpAddr)
@@ -21,17 +23,33 @@ func NewServer(udpAddr *net.UDPAddr, addr *Address) (*Server, error) {
 	}
 	s.conn = conn
 	s.addr = addr
+	if handler == nil {
+		s.handler = func(command *Command) *Response {
+			fmt.Printf("Null command handler: 0x%04x\n", command.CommandCode())
+
+			response := NewResponse(command.CommandCode(), EndCodeNotSupportedByModelVersion, []byte{})
+			return response
+		}
+	} else {
+		s.handler = handler
+	}
 
 	go func() {
+		var buf [1024]byte
 		for {
-			var buf [1024]byte
-			for {
-				rlen, remote, err := conn.ReadFromUDP(buf[:])
-				// s := string(buf[:rlen])
-				fmt.Printf("Received %d bytes from %s\n%s", rlen, remote.IP, hex.Dump(buf[:rlen]))
-				if err != nil {
-					panic(err)
-				}
+			//rlen
+			rlen, remote, err := conn.ReadFromUDP(buf[:])
+			cmdFrame := decodeFrame(buf[:rlen])
+			cmd := cmdFrame.Payload().(*Command)
+			rsp := s.handler(cmd)
+			if err != nil {
+				panic(err)
+			}
+
+			rspFrame := NewFrame(defaultResponseHeader(cmdFrame.Header()), rsp)
+			_, err = conn.WriteToUDP(encodeFrame(rspFrame), &net.UDPAddr{IP: remote.IP, Port: remote.Port})
+			if err != nil {
+				panic(err)
 			}
 		}
 	}()

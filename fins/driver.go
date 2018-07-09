@@ -54,24 +54,45 @@ func encodeFrame(f *Frame) []byte {
 	return bytes
 }
 
+const (
+	icfBridgesBit          byte = 7
+	icfMessageTypeBit      byte = 6
+	icfResponseRequiredBit byte = 0
+)
+
 func decodeHeader(bytes []byte) *Header {
-	header := &Header{
-		icf: bytes[0],
-		rsv: bytes[1],
-		gct: bytes[2],
-		dst: NewAddress(bytes[3], bytes[4], bytes[5]),
-		src: NewAddress(bytes[6], bytes[7], bytes[8]),
-		sid: bytes[9],
+	header := new(Header)
+	icf := bytes[0]
+	if icf&1<<icfResponseRequiredBit == 0 {
+		header.responseRequired = true
 	}
+	if icf&1<<icfMessageTypeBit == 0 {
+		header.messgeType = MessageTypeCommand
+	} else {
+		header.messgeType = MessageTypeResponse
+	}
+	header.gatewayCount = bytes[2]
+	header.dst = NewAddress(bytes[3], bytes[4], bytes[5])
+	header.src = NewAddress(bytes[6], bytes[7], bytes[8])
+	header.serviceID = bytes[9]
+
 	return header
 }
 
 func encodeHeader(h *Header) []byte {
+	var icf byte
+	icf = 0x80
+	if h.responseRequired == false {
+		icf |= 1 << icfResponseRequiredBit
+	}
+	if h.messgeType == MessageTypeResponse {
+		icf |= 1 << icfMessageTypeBit
+	}
 	bytes := []byte{
-		h.icf, h.rsv, h.gct,
+		icf, 0x00, h.gatewayCount,
 		h.dst.Network(), h.dst.Node(), h.dst.Unit(),
 		h.src.Network(), h.src.Node(), h.src.Unit(),
-		h.sid}
+		h.serviceID}
 	return bytes
 }
 

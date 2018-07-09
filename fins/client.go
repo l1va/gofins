@@ -260,7 +260,7 @@ var ErrIncompatibleMemoryArea = errors.New("The memory area is incompatible with
 
 func (c *Client) nextHeader() *Header {
 	sid := c.incrementSid()
-	header := defaultHeader(c.dst, c.src, sid)
+	header := defaultCommandHeader(c.dst, c.src, sid)
 	return header
 }
 
@@ -280,7 +280,7 @@ func (c *Client) sendCommand(header *Header, payload Payload) (*Response, error)
 		return nil, err
 	}
 
-	responseFrame := <-c.resp[header.sid]
+	responseFrame := <-c.resp[header.ServiceID()]
 	p := responseFrame.Payload()
 	response := NewResponse(
 		p.CommandCode(),
@@ -302,7 +302,7 @@ func (c *Client) listenLoop() {
 			if err != nil {
 				log.Println("failed to parse response: ", err, " \nresponse: ", buf[0:n])
 			} else {
-				c.resp[ans.Header().sid] <- *ans
+				c.resp[ans.Header().ServiceID()] <- *ans
 			}
 		} else {
 			log.Println("Cannot read response: ", buf)
