@@ -1,86 +1,95 @@
 package fins
 
-// For now we have only one PLC - it means we do not need in any networks settings -
-// almost everywhere is 0.
+// Header A FINS frame header
 type Header struct {
-	icf byte
-	rsv byte
-	gct byte
-	dna byte
-	da1 byte
-	da2 byte
-	sna byte
-	sa1 byte
-	sa2 byte
-	sid byte
+	messgeType       uint8
+	responseRequired bool
+	dst              *Address
+	src              *Address
+	serviceID        byte
+	gatewayCount     uint8
 }
 
-func defaultHeader(sid byte) *Header {
+const (
+	// MessageTypeCommand Command message type
+	MessageTypeCommand uint8 = iota
+
+	// MessageTypeResponse Response message type
+	MessageTypeResponse uint8 = iota
+)
+
+// IsResponseRequired Returns true if this header indicates that a response should be required
+func (h *Header) IsResponseRequired() bool {
+	return h.responseRequired
+}
+
+// FrameIsCommand Returns true if the frame this header was contained within was a command
+func (h *Header) FrameIsCommand() bool {
+	return h.messgeType == MessageTypeCommand
+}
+
+// FrameIsResponse Returns true if the frame this header was contained within was a response
+func (h *Header) FrameIsResponse() bool {
+	return h.messgeType == MessageTypeResponse
+}
+
+// SetToRequireResponse Will set this header to indicate that a response is required
+// func (h *Header) SetToRequireResponse() {
+// 	h.responseRequired = true
+// }
+
+// SetToRequireNoResponse Will set this header to indicate that a response is not required
+// func (h *Header) SetToRequireNoResponse() {
+// 	h.responseRequired = false
+// }
+
+// SetToCommandMessageType Will set this header to indicate that the message is a command
+// func (h *Header) SetToCommandMessageType() {
+// 	h.messgeType = MessageTypeCommand
+// }
+
+// SetToResponseMessageType Will set this header to indicate that the message is a response
+// func (h *Header) SetToResponseMessageType() {
+// 	h.messgeType = MessageTypeResponse
+// }
+
+// GatewayCount Gets the gateway count
+func (h *Header) GatewayCount() byte {
+	return h.gatewayCount
+}
+
+// SourceAddress Gets the source address
+func (h *Header) SourceAddress() Address {
+	return *h.src
+}
+
+// DestinationAddress Gets the destination address
+func (h *Header) DestinationAddress() Address {
+	return *h.dst
+}
+
+// ServiceID Gets the service id
+func (h *Header) ServiceID() byte {
+	return h.serviceID
+}
+
+func defaultHeader(messageType uint8, responseRequired bool, dst *Address, src *Address, serviceID byte) *Header {
 	h := new(Header)
-	h.icf = icf()
-	h.rsv = rsv()
-	h.gct = gct()
-	h.dna = dstNetwork()
-	h.da1 = dstNode()
-	h.da2 = dstUnit()
-	h.sna = srcNetwork()
-	h.sa1 = srcNode()
-	h.sa2 = srcUnit()
-	h.sid = sid
+	h.messgeType = messageType
+	h.responseRequired = responseRequired
+	h.gatewayCount = 2
+	h.dst = dst
+	h.src = src
+	h.serviceID = serviceID
 	return h
 }
 
-func newHeaderNoResponse(sid byte) *Header {
-	h := defaultHeader(sid)
-	h.icf = icfNoResponse()
+func defaultCommandHeader(dst *Address, src *Address, serviceID byte) *Header {
+	h := defaultHeader(MessageTypeCommand, true, src, dst, serviceID)
 	return h
 }
 
-func (f *Header) Format() []byte {
-
-	return []byte{
-		f.icf, f.rsv, f.gct,
-		f.dna, f.da1, f.da2,
-		f.sna, f.sa1, f.sa2,
-		f.sid}
-}
-
-func icf() byte {
-	return 0x80 //128
-}
-
-func icfNoResponse() byte {
-	return 0x81 //129
-}
-
-func rsv() byte {
-	return 0
-}
-
-func gct() byte {
-	return 0x02
-}
-
-func dstNetwork() byte {
-	return 0
-}
-
-func dstNode() byte {
-	return 0
-}
-
-func dstUnit() byte {
-	return 0
-}
-
-func srcNetwork() byte {
-	return 0
-}
-
-func srcNode() byte {
-	return 0x22
-}
-
-func srcUnit() byte {
-	return 0
+func defaultResponseHeader(commandHeader *Header) *Header {
+	h := defaultHeader(MessageTypeResponse, false, commandHeader.src, commandHeader.dst, commandHeader.serviceID)
+	return h
 }
