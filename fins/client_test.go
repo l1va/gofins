@@ -1,12 +1,13 @@
 package fins
 
 import (
-	"testing"
+	"fmt"
 	"log"
 	"net"
-	"github.com/stretchr/testify/assert"
 	"strconv"
-	"fmt"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestFinsClient(t *testing.T) {
@@ -51,6 +52,7 @@ func makeWriteAnswer(sid byte, respNeeded bool) response {
 	ans[9] = sid
 	return response{data: ans, needed: respNeeded}
 }
+
 func makeReadAnswer(sid byte, data []uint16) response {
 	ans := make([]byte, 14)
 	ans[9] = sid
