@@ -5,53 +5,93 @@ import (
 	"errors"
 )
 
-func readCommand(ioAddr *IOAddress, itemCount uint16) *Command {
-	commandData := make([]byte, 0, 6)
-	commandData = append(commandData, encodeIOAddress(ioAddr)...)
-	commandData = append(commandData, []byte{0, 0}...)
-	binary.BigEndian.PutUint16(commandData[4:6], itemCount)
-	return NewCommand(CommandCodeMemoryAreaRead, commandData)
+// request A FINS command request
+type request struct {
+	header Header
+	commandCode uint16
+	data   []byte
 }
 
-func writeCommand(ioAddr *IOAddress, itemCount uint16, bytes []byte) *Command {
-	commandData := make([]byte, 0, 6+len(bytes))
-	commandData = append(commandData, encodeIOAddress(ioAddr)...)
+// response A FINS command response
+type response struct {
+	header      Header
+	commandCode uint16
+	endCode     uint16
+	data        []byte
+}
+
+// memoryAddress A plc memory address to do a work
+type memoryAddress struct {
+	memoryArea byte
+	address    uint16
+	bitOffset  byte
+}
+
+func memAddr(memoryArea byte, address uint16) memoryAddress {
+	return memAddrWithBitOffset(memoryArea, address, 0)
+}
+
+func memAddrWithBitOffset(memoryArea byte, address uint16, bitOffset byte) memoryAddress {
+	return memoryAddress{memoryArea, address, bitOffset}
+}
+
+func readCommand(memoryAddr memoryAddress, itemCount uint16) []byte {
+	commandData := make([]byte, 2, 8)
+	binary.BigEndian.PutUint16(commandData[0:2], CommandCodeMemoryAreaRead)
+	commandData = append(commandData, encodeMemoryAddress(memoryAddr)...)
 	commandData = append(commandData, []byte{0, 0}...)
-	binary.BigEndian.PutUint16(commandData[4:6], itemCount)
+	binary.BigEndian.PutUint16(commandData[6:8], itemCount)
+	return commandData
+}
+
+func writeCommand(memoryAddr memoryAddress, itemCount uint16, bytes []byte) []byte {
+	commandData := make([]byte, 2, 8+len(bytes))
+	binary.BigEndian.PutUint16(commandData[0:2], CommandCodeMemoryAreaWrite)
+	commandData = append(commandData, encodeMemoryAddress(memoryAddr)...)
+	commandData = append(commandData, []byte{0, 0}...)
+	binary.BigEndian.PutUint16(commandData[6:8], itemCount)
 	commandData = append(commandData, bytes...)
-	return NewCommand(CommandCodeMemoryAreaWrite, commandData)
+	return commandData
 }
 
-func encodeIOAddress(ioAddr *IOAddress) []byte {
+func clockReadCommand() []byte {
+	commandData := make([]byte, 2, 2)
+	binary.BigEndian.PutUint16(commandData[0:2], CommandCodeClockRead)
+	return commandData
+}
+
+func encodeMemoryAddress(memoryAddr memoryAddress) []byte {
 	bytes := make([]byte, 4, 4)
-	bytes[0] = ioAddr.MemoryArea()
-	binary.BigEndian.PutUint16(bytes[1:3], ioAddr.Address())
-	bytes[3] = ioAddr.BitOffset()
+	bytes[0] = memoryAddr.memoryArea
+	binary.BigEndian.PutUint16(bytes[1:3], memoryAddr.address)
+	bytes[3] = memoryAddr.bitOffset
 	return bytes
 }
 
-func decodeFrame(bytes []byte) *Frame {
-	header := decodeHeader(bytes[0:10])
-	var payload Payload
-	if header.FrameIsCommand() {
-		payload = decodeCommand(bytes[10:])
-	} else if header.FrameIsResponse() {
-		payload = decodeResponse(bytes[10:])
+func decodeRequest(bytes []byte) request {
+	return request{
+		decodeHeader(bytes[0:10]),
+		binary.BigEndian.Uint16(bytes[10:12]),
+		bytes[12:],
 	}
-	frame := NewFrame(header, payload)
-	return frame
 }
 
-func encodeFrame(f *Frame) []byte {
-	bytes := encodeHeader(f.Header())
-	var payloadData []byte
-	if f.Header().FrameIsCommand() {
-		payloadData = encodeCommand(f.Payload().(*Command))
-	} else if f.Header().FrameIsResponse() {
-		payloadData = encodeResponse(f.Payload().(*Response))
+func decodeResponse(bytes []byte) response {
+	return response{
+		decodeHeader(bytes[0:10]),
+		binary.BigEndian.Uint16(bytes[10:12]),
+		binary.BigEndian.Uint16(bytes[12:14]),
+		bytes[14:],
 	}
-	bytes = append(bytes, payloadData...)
-	return bytes
+}
+func encodeResponse(resp response) []byte {
+	bytes := make([]byte, 4, 4+len(resp.data))
+	binary.BigEndian.PutUint16(bytes[0:2], resp.commandCode)
+	binary.BigEndian.PutUint16(bytes[2:4], resp.endCode)
+	bytes = append(bytes, resp.data...)
+	bh := encodeHeader(resp.header)
+	bh = append(bh, bytes...)
+	return bh
 }
 
 const (
@@ -60,67 +100,39 @@ const (
 	icfResponseRequiredBit byte = 0
 )
 
-func decodeHeader(bytes []byte) *Header {
-	header := new(Header)
+func decodeHeader(bytes []byte) Header {
+	header := Header{}
 	icf := bytes[0]
 	if icf&1<<icfResponseRequiredBit == 0 {
 		header.responseRequired = true
 	}
 	if icf&1<<icfMessageTypeBit == 0 {
-		header.messgeType = MessageTypeCommand
+		header.messageType = MessageTypeCommand
 	} else {
-		header.messgeType = MessageTypeResponse
+		header.messageType = MessageTypeResponse
 	}
 	header.gatewayCount = bytes[2]
-	header.dst = NewAddress(bytes[3], bytes[4], bytes[5])
-	header.src = NewAddress(bytes[6], bytes[7], bytes[8])
+	header.dst = finsAddress{bytes[3], bytes[4], bytes[5]}
+	header.src = finsAddress{bytes[6], bytes[7], bytes[8]}
 	header.serviceID = bytes[9]
 
 	return header
 }
 
-func encodeHeader(h *Header) []byte {
+func encodeHeader(h Header) []byte {
 	var icf byte
-	icf = 0x80
+	icf = 1 << icfBridgesBit
 	if h.responseRequired == false {
 		icf |= 1 << icfResponseRequiredBit
 	}
-	if h.messgeType == MessageTypeResponse {
+	if h.messageType == MessageTypeResponse {
 		icf |= 1 << icfMessageTypeBit
 	}
 	bytes := []byte{
 		icf, 0x00, h.gatewayCount,
-		h.dst.Network(), h.dst.Node(), h.dst.Unit(),
-		h.src.Network(), h.src.Node(), h.src.Unit(),
+		h.dst.network, h.dst.node, h.dst.unit,
+		h.src.network, h.src.node, h.src.unit,
 		h.serviceID}
-	return bytes
-}
-
-func decodeCommand(bytes []byte) *Command {
-	return NewCommand(
-		binary.BigEndian.Uint16(bytes[0:2]),
-		bytes[2:])
-}
-
-func encodeCommand(command *Command) []byte {
-	bytes := make([]byte, 2, 2+len(command.Data()))
-	binary.BigEndian.PutUint16(bytes[0:2], command.CommandCode())
-	bytes = append(bytes, command.Data()...)
-	return bytes
-}
-
-func decodeResponse(bytes []byte) *Response {
-	return NewResponse(
-		binary.BigEndian.Uint16(bytes[0:2]),
-		binary.BigEndian.Uint16(bytes[2:4]),
-		bytes[4:])
-}
-
-func encodeResponse(response *Response) []byte {
-	bytes := make([]byte, 4, 4+len(response.Data()))
-	binary.BigEndian.PutUint16(bytes[0:2], response.CommandCode())
-	binary.BigEndian.PutUint16(bytes[2:4], response.EndCode())
-	bytes = append(bytes, response.Data()...)
 	return bytes
 }
 

@@ -1,28 +1,30 @@
 package fins
 
-// Address A FINS device address
-type Address struct {
+import "net"
+
+// finsAddress A FINS device address
+type finsAddress struct {
 	network byte
 	node    byte
 	unit    byte
 }
 
-func NewAddress(network byte, node byte, unit byte) *Address {
-	a := new(Address)
-	a.network = network
-	a.node = node
-	a.unit = unit
-	return a
+// Address A full device address
+type Address struct {
+	finsAddress finsAddress
+	udpAddress  *net.UDPAddr
 }
 
-func (a *Address) Network() byte {
-	return a.network
-}
-
-func (a *Address) Node() byte {
-	return a.node
-}
-
-func (a *Address) Unit() byte {
-	return a.unit
+func NewAddress(ip string, port int, network, node, unit byte) Address {
+	return Address{
+		udpAddress: &net.UDPAddr{
+			IP:   net.ParseIP(ip),
+			Port: port,
+		},
+		finsAddress: finsAddress{
+			network: network,
+			node:    node,
+			unit:    unit,
+		},
+	}
 }

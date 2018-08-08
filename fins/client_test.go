@@ -1,109 +1,48 @@
 package fins
 
 import (
-	"fmt"
-	"log"
-	"net"
-	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"encoding/binary"
 )
 
 func TestFinsClient(t *testing.T) {
-	l, err := net.Listen("tcp", ":0")
-	assert.Nil(t, err)
-	plcAddr := ":" + strconv.Itoa(l.Addr().(*net.TCPAddr).Port)
-	l.Close()
-	fmt.Println(plcAddr)
+	clientAddr := NewAddress("", 9600, 0, 2, 0)
+	plcAddr := NewAddress("", 9601, 0, 10, 0)
 
 	toWrite := []uint16{5, 4, 3, 2, 1}
-
-	answers := map[byte]response{
-		1: makeWriteAnswer(1, true),
-		2: makeReadAnswer(2, toWrite),
-		3: makeWriteAnswer(3, false),
-		4: makeReadAnswer(4, toWrite),
-	}
-	plc := NewPLCMock(plcAddr, answers)
-	defer plc.CloseConnection()
-
-	c := NewClient(plcAddr)
-	defer c.CloseConnection()
-	err = c.WriteD(100, toWrite)
-	assert.Nil(t, err)
-	vals, err := c.ReadD(100, 5)
-	assert.Nil(t, err)
-	assert.Equal(t, toWrite, vals)
-	err = c.WriteDNoResponse(200, toWrite)
-	assert.Nil(t, err)
-	vals, err = c.ReadD(200, 5)
-	assert.Nil(t, err)
-	assert.Equal(t, toWrite, vals)
-}
-
-type response struct {
-	data   []byte
-	needed bool
-}
-
-func makeWriteAnswer(sid byte, respNeeded bool) response {
-	ans := make([]byte, 14)
-	ans[9] = sid
-	return response{data: ans, needed: respNeeded}
-}
-
-func makeReadAnswer(sid byte, data []uint16) response {
-	ans := make([]byte, 14)
-	ans[9] = sid
-	return response{data: append(ans, toBytes(data)...), needed: true}
-}
-
-type PLCMock struct {
-	answers map[byte]response
-	pc      net.PacketConn
-}
-
-func NewPLCMock(plcAddr string, answers map[byte]response) *PLCMock {
-	c := new(PLCMock)
-	c.answers = answers
-
-	pc, err := net.ListenPacket("udp", plcAddr)
-	if err != nil {
-		log.Fatal(err)
-	}
-	c.pc = pc
-
-	go c.listenLoop()
-
-	return c
-
-}
-
-func (c *PLCMock) CloseConnection() {
-	c.pc.Close()
-}
-
-func (c *PLCMock) listenLoop() {
-	for {
-		buf := make([]byte, 2048)
-		n, addr, err := c.pc.ReadFrom(buf)
-		if err != nil {
-			log.Fatal(err)
+	handler := func(req request) response {
+		l := uint16(len(toWrite))
+		bts := make([]byte, 2*l, 2*l)
+		for i := 0; i < int(l); i++ {
+			binary.BigEndian.PutUint16(bts[i*2:i*2+2], toWrite[i])
 		}
-
-		if n > 0 {
-			sid := buf[9]
-			ans, exist := c.answers[sid]
-			if exist {
-				if ans.needed {
-					c.pc.WriteTo(c.answers[sid].data, addr)
-				}
-			} else {
-				log.Fatal("There is no answer for sid =", sid)
-			}
-		} else {
-			log.Fatal("Cannot read request: ", buf)
+		return response{
+			header:      defaultResponseHeader(req.header),
+			commandCode: req.commandCode,
+			endCode:     EndCodeNormalCompletion,
+			data:        bts,
 		}
 	}
+
+	s, e := NewServer(plcAddr, handler)
+	if e != nil {
+		panic(e)
+	}
+	defer s.Close()
+
+	c, e := NewClient(clientAddr, plcAddr)
+	if e != nil {
+		panic(e)
+	}
+	defer c.Close()
+
+	err := c.WriteWords(MemoryAreaDMWord, 100, toWrite)
+	assert.Nil(t, err)
+
+	vals, err := c.ReadWords(MemoryAreaDMWord, 100, 5)
+	assert.Nil(t, err)
+	assert.Equal(t, toWrite, vals)
+
 }

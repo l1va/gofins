@@ -2,39 +2,26 @@ package main
 
 import (
 	"fmt"
-	"net"
 
-	"github.com/siyka-au/gofins/fins"
+	"github.com/l1va/gofins/fins"
 )
 
 func main() {
 
-	localClientAddr := &net.UDPAddr{
-		IP:   net.ParseIP("192.168.250.2"),
-		Port: 9600,
-	}
-	// localServerAddr := &net.UDPAddr{
-	// 	IP:   net.ParseIP("192.168.250.3"),
-	// 	Port: 9600,
-	// }
-	plcAddr := &net.UDPAddr{
-		IP:   net.ParseIP("192.168.250.10"),
-		Port: 9600,
-	}
+	clientAddr := fins.NewAddress("192.168.250.2", 9600, 0, 2, 0)
+	plcAddr := fins.NewAddress("192.168.250.10", 9600, 0, 10, 0)
 
-	c, e := fins.NewClient(localClientAddr, plcAddr, fins.NewAddress(0, 10, 0), fins.NewAddress(0, 2, 0))
-	defer c.Close()
+	//s, e := fins.NewServer(plcAddr, nil)
+	//if e != nil {
+	//	panic(e)
+	//}
+	//defer s.Close()
+
+	c, e := fins.NewClient(clientAddr, plcAddr)
 	if e != nil {
 		panic(e)
 	}
-
-	// s, e := fins.NewServer(localServerAddr, fins.NewAddress(0, 3, 0))
-	// if e != nil {
-	// 	panic(e)
-	// }
-
 	defer c.Close()
-	// defer s.Close()
 
 	z, _ := c.ReadWords(fins.MemoryAreaDMWord, 10000, 500)
 	fmt.Println(z)
@@ -64,7 +51,4 @@ func main() {
 	// 	c.WriteString(fins.MemoryAreaDMWord, 10000, 10, t.Format(time.RFC3339))
 	// })
 	// cron.Start()
-
-	for {
-	}
 }

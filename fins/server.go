@@ -7,47 +7,37 @@ import (
 
 // Server Omron FINS server (PLC emulator)
 type Server struct {
+	addr    Address
 	conn    *net.UDPConn
-	addr    *Address
 	handler CommandHandler
 }
 
-type CommandHandler func(*Command) *Response
+type CommandHandler func(req request) response
 
-func NewServer(udpAddr *net.UDPAddr, addr *Address, handler CommandHandler) (*Server, error) {
+func NewServer(plcAddr Address, handler CommandHandler) (*Server, error) {
 	s := new(Server)
+	s.addr = plcAddr
 
-	conn, err := net.ListenUDP("udp", udpAddr)
+	conn, err := net.ListenUDP("udp", plcAddr.udpAddress)
 	if err != nil {
 		return nil, err
 	}
 	s.conn = conn
-	s.addr = addr
-	if handler == nil {
-		s.handler = func(command *Command) *Response {
-			fmt.Printf("Null command handler: 0x%04x\n", command.CommandCode())
 
-			response := NewResponse(command.CommandCode(), EndCodeNotSupportedByModelVersion, []byte{})
-			return response
-		}
-	} else {
-		s.handler = handler
+	s.handler = handler
+
+	if handler == nil {
+		s.handler = defaultHandler
 	}
 
 	go func() {
 		var buf [1024]byte
 		for {
-			//rlen
 			rlen, remote, err := conn.ReadFromUDP(buf[:])
-			cmdFrame := decodeFrame(buf[:rlen])
-			cmd := cmdFrame.Payload().(*Command)
-			rsp := s.handler(cmd)
-			if err != nil {
-				panic(err)
-			}
+			req := decodeRequest(buf[:rlen])
+			resp := s.handler(req)
 
-			rspFrame := NewFrame(defaultResponseHeader(cmdFrame.Header()), rsp)
-			_, err = conn.WriteToUDP(encodeFrame(rspFrame), &net.UDPAddr{IP: remote.IP, Port: remote.Port})
+			_, err = conn.WriteToUDP(encodeResponse(resp), &net.UDPAddr{IP: remote.IP, Port: remote.Port})
 			if err != nil {
 				panic(err)
 			}
@@ -57,24 +47,14 @@ func NewServer(udpAddr *net.UDPAddr, addr *Address, handler CommandHandler) (*Se
 	return s, nil
 }
 
+func defaultHandler(r request) response {
+	fmt.Printf("Null command handler: 0x%04x\n", r.commandCode)
+
+	response := response{defaultResponseHeader(r.header), r.commandCode, EndCodeNotSupportedByModelVersion, []byte{}}
+	return response
+}
+
 // Close Closes the FINS server
 func (s *Server) Close() {
 	s.conn.Close()
-}
-
-// Handles incoming requests.
-func handleRequest(conn net.Conn) {
-	// Make a buffer to hold incoming data.
-	buf := make([]byte, 1024)
-	// Read the incoming connection into the buffer.
-	reqLen, err := conn.Read(buf)
-	if err != nil {
-		fmt.Println("Error reading:", err.Error())
-	}
-
-	fmt.Printf("Received %d bytes\n", reqLen)
-	// Send a response back to person contacting us.
-	conn.Write([]byte("Message received."))
-	// Close the connection when you're done with it.
-	conn.Close()
 }
