@@ -8,8 +8,8 @@ import (
 
 func main() {
 
-	clientAddr := fins.NewAddress("192.168.250.2", 9600, 0, 2, 0)
-	plcAddr := fins.NewAddress("192.168.250.10", 9600, 0, 10, 0)
+	clientAddr := fins.NewAddress("192.168.250.10", 9600, 0, 0, 0)
+	plcAddr := fins.NewAddress("192.168.250.1", 9600, 0, 34, 0)
 
 	//s, e := fins.NewServer(plcAddr, nil)
 	//if e != nil {
@@ -17,13 +17,24 @@ func main() {
 	//}
 	//defer s.Close()
 
-	c, e := fins.NewClient(clientAddr, plcAddr)
-	if e != nil {
-		panic(e)
+	c, err := fins.NewClient(clientAddr, plcAddr)
+	if err != nil {
+		panic(err)
 	}
 	defer c.Close()
 
-	z, _ := c.ReadWords(fins.MemoryAreaDMWord, 10000, 500)
+	z, err := c.ReadWords(fins.MemoryAreaDMWord, 1000, 50)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(z)
+
+	c.WriteWords(fins.MemoryAreaDMWord, 2000, []uint16{z[0] + 1, z[1] - 1})
+
+	z, err = c.ReadWords(fins.MemoryAreaDMWord, 2000, 50)
+	if err != nil {
+		panic(err)
+	}
 	fmt.Println(z)
 
 	// s, _ := c.ReadString(fins.MemoryAreaDMWord, 10000, 10)

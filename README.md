@@ -21,3 +21,6 @@ Feel free to ask questions, raise issues and make pull requests!
  FAIL   github.com/l1va/gofins/fins	0.004s
  The command "go test -v ./..." exited with 1.
  ```
+ 
+ ### Thanks
+ malleblas for his PR: https://github.com/l1va/gofins/pull/1
