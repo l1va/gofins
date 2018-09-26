@@ -2,47 +2,64 @@ package main
 
 import (
 	"fmt"
-	"log"
+
 	"github.com/l1va/gofins/fins"
 )
 
 func main() {
-	plcAddr := "192.168.250.1:9600"
 
-	c := fins.NewClient(plcAddr)
-	defer c.CloseConnection()
+	clientAddr := fins.NewAddress("192.168.250.10", 9600, 0, 0, 0)
+	plcAddr := fins.NewAddress("192.168.250.1", 9600, 0, 34, 0)
 
-	err := c.WriteDAsync(100, []uint16{5, 4, 3, 2, 1}, func(fins.Response) {
-		log.Println("writing done!")
-	})
+	//s, e := fins.NewServer(plcAddr, nil)
+	//if e != nil {
+	//	panic(e)
+	//}
+	//defer s.Close()
+
+	c, err := fins.NewClient(clientAddr, plcAddr)
 	if err != nil {
-		log.Println("writing request failed:", err)
+		panic(err)
 	}
+	defer c.Close()
 
-	err = c.ReadDAsync(100, 5, func(r fins.Response) {
-		log.Println("readed values: ", r.Data)
-	})
+	z, err := c.ReadWords(fins.MemoryAreaDMWord, 1000, 50)
 	if err != nil {
-		log.Println("reading request failed:", err)
+		panic(err)
 	}
+	fmt.Println(z)
 
-	for i := 0; i < 10; i += 1 {
-		t := uint16(i * 5)
-		err := c.WriteD(200+t, []uint16{t, t + 1, t + 2, t + 3, t + 4})
-		if err != nil {
-			log.Fatal(err)
-		}
-	}
+	c.WriteWords(fins.MemoryAreaDMWord, 2000, []uint16{z[0] + 1, z[1] - 1})
 
-	err = c.WriteDNoResponse(200, []uint16{5, 4, 3, 2, 1})
+	z, err = c.ReadWords(fins.MemoryAreaDMWord, 2000, 50)
 	if err != nil {
-		log.Println("writing request without response failed:", err)
+		panic(err)
 	}
+	fmt.Println(z)
 
-	vals, err := c.ReadD(200, 50)
-	if err != nil {
-		log.Fatal(err)
-	}
+	// s, _ := c.ReadString(fins.MemoryAreaDMWord, 10000, 10)
+	// fmt.Println(s)
+	// fmt.Println(len(s))
 
-	fmt.Println(vals)
+	// b, _ := c.ReadBits(fins.MemoryAreaDMWord, 10473, 2, 1)
+	// fmt.Println(b)
+	// fmt.Println(len(b))
+
+	// c.WriteWords(fins.MemoryAreaDMWord, 24000, []uint16{z[0] + 1, z[1] - 1})
+	// c.WriteBits(fins.MemoryAreaDMBit, 24002, 0, []bool{false, false, false, true,
+	// 	true, false, false, true,
+	// 	false, false, false, false,
+	// 	true, true, true, true})
+	// c.SetBit(fins.MemoryAreaDMBit, 24003, 1)
+	// c.ResetBit(fins.MemoryAreaDMBit, 24003, 0)
+	// c.ToggleBit(fins.MemoryAreaDMBit, 24003, 2)
+
+	// cron := cron.New()
+	// s := rasc.NewShelter()
+	// cron.AddFunc("*/5 * * * * *", func() {
+	// 	t, _ := c.ReadClock()
+	// 	fmt.Printf("Setting PLC time to: %s\n", t.Format(time.RFC3339))
+	// 	c.WriteString(fins.MemoryAreaDMWord, 10000, 10, t.Format(time.RFC3339))
+	// })
+	// cron.Start()
 }
