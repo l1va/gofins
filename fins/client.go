@@ -235,7 +235,7 @@ var ErrIncompatibleMemoryArea = errors.New("The memory area is incompatible with
 
 func (c *Client) nextHeader() *Header {
 	sid := c.incrementSid()
-	header := defaultCommandHeader(c.dst, c.src, sid)
+	header := defaultCommandHeader(c.src, c.dst, sid)
 	return &header
 }
 

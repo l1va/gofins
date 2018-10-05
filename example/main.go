@@ -8,8 +8,8 @@ import (
 
 func main() {
 
-	clientAddr := fins.NewAddress("192.168.250.10", 9600, 0, 0, 0)
-	plcAddr := fins.NewAddress("192.168.250.1", 9600, 0, 34, 0)
+	clientAddr := fins.NewAddress("192.168.250.10", 9600, 0, 34, 0)
+	plcAddr := fins.NewAddress("192.168.250.1", 9600, 0, 0, 0)
 
 	//s, e := fins.NewServer(plcAddr, nil)
 	//if e != nil {
