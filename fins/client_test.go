@@ -12,7 +12,7 @@ func TestFinsClient(t *testing.T) {
 	plcAddr := NewAddress("", 9601, 0, 10, 0)
 
 	toWrite := []uint16{5, 4, 3, 2, 1}
-	handler := func(req request) response {
+	handler := func(req request, mem []byte) response {
 		l := uint16(len(toWrite))
 		bts := make([]byte, 2*l, 2*l)
 		for i := 0; i < int(l); i++ {
