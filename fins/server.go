@@ -44,9 +44,10 @@ func NewServer(plcAddr Address, handler CommandHandler) (*Server, error) {
 				resp := s.handler(req, s.dmarea)
 
 				_, err = conn.WriteToUDP(encodeResponse(resp), &net.UDPAddr{IP: remote.IP, Port: remote.Port})
-				if err != nil {
-					panic(err)
-				}
+			}
+			// encountering an error here means that the connection has been closed, graceful shutdown
+			if err != nil {
+				break
 			}
 		}
 	}()
