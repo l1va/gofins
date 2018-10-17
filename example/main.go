@@ -8,14 +8,16 @@ import (
 
 func main() {
 
-	clientAddr := fins.NewAddress("192.168.250.10", 9600, 0, 34, 0)
-	plcAddr := fins.NewAddress("192.168.250.1", 9600, 0, 0, 0)
+	//clientAddr := fins.NewAddress("192.168.250.10", 9600, 0, 34, 0)
+	//plcAddr := fins.NewAddress("192.168.250.1", 9601, 0, 0, 0)
+	clientAddr := fins.NewAddress("127.0.0.1", 9600, 0, 34, 0)
+	plcAddr := fins.NewAddress("127.0.0.1", 9601, 0, 0, 0)
 
-	//s, e := fins.NewServer(plcAddr, nil)
-	//if e != nil {
-	//	panic(e)
-	//}
-	//defer s.Close()
+	s, e := fins.NewPLCSimulator(plcAddr)
+	if e != nil {
+		panic(e)
+	}
+	defer s.Close()
 
 	c, err := fins.NewClient(clientAddr, plcAddr)
 	if err != nil {

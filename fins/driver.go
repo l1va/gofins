@@ -68,6 +68,10 @@ func encodeMemoryAddress(memoryAddr memoryAddress) []byte {
 	return bytes
 }
 
+func decodeMemoryAddress(data []byte) memoryAddress {
+	return memoryAddress{data[0], binary.BigEndian.Uint16(data[1:3]), data[3]}
+}
+
 func decodeRequest(bytes []byte) request {
 	return request{
 		decodeHeader(bytes[0:10]),
