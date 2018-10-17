@@ -2,7 +2,7 @@ package fins
 
 import (
 	"encoding/binary"
-	"fmt"
+	"log"
 	"net"
 )
 
@@ -12,13 +12,14 @@ type Server struct {
 	conn    *net.UDPConn
 	handler CommandHandler
 	dmarea []byte
+	closed bool
 }
 
 type CommandHandler func(req request, dmarea []byte) response
 
 const DM_AREA_SIZE = 32768
 
-func NewServer(plcAddr Address, handler CommandHandler) (*Server, error) {
+func NewPLCSimulator(plcAddr Address) (*Server, error) {
 	s := new(Server)
 	s.addr = plcAddr
 	s.dmarea = make([]byte, DM_AREA_SIZE)
@@ -29,24 +30,21 @@ func NewServer(plcAddr Address, handler CommandHandler) (*Server, error) {
 	}
 	s.conn = conn
 
-	s.handler = handler
-
-	if handler == nil {
-		s.handler = defaultHandler
-	}
-
 	go func() {
 		var buf [1024]byte
 		for {
 			rlen, remote, err := conn.ReadFromUDP(buf[:])
 			if rlen > 0 {
 				req := decodeRequest(buf[:rlen])
-				resp := s.handler(req, s.dmarea)
+				resp := handler(req, s.dmarea)
 
 				_, err = conn.WriteToUDP(encodeResponse(resp), &net.UDPAddr{IP: remote.IP, Port: remote.Port})
 			}
-			// encountering an error here means that the connection has been closed, graceful shutdown
 			if err != nil {
+				// do not complain when connection is closed by user
+				if !s.closed {
+					log.Fatal("Encountered error in server loop: ", err)
+				}
 				break
 			}
 		}
@@ -55,15 +53,8 @@ func NewServer(plcAddr Address, handler CommandHandler) (*Server, error) {
 	return s, nil
 }
 
-func defaultHandler(r request, dmarea []byte) response {
-	fmt.Printf("Null command handler: 0x%04x\n", r.commandCode)
-
-	response := response{defaultResponseHeader(r.header), r.commandCode, EndCodeNotSupportedByModelVersion, []byte{}}
-	return response
-}
-
 // Works with only DM area, 2 byte integers
-func DMAreaHandler(r request, dmarea []byte) response {
+func handler(r request, dmarea []byte) response {
 	var endCode uint16
 	data := []byte{}
 	switch r.commandCode {
@@ -84,12 +75,14 @@ func DMAreaHandler(r request, dmarea []byte) response {
 			endCode = EndCodeNormalCompletion
 		}
 	default:
-		return defaultHandler(r, dmarea)
+		log.Printf("Null command handler: 0x%04x\n", r.commandCode)
+		endCode = EndCodeNotSupportedByModelVersion
 	}
 	return response{defaultResponseHeader(r.header), r.commandCode, endCode, data}
 }
 
 // Close Closes the FINS server
 func (s *Server) Close() {
+	s.closed = true
 	s.conn.Close()
 }

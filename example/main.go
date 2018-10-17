@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	"gofins/fins"
+	"github.com/l1va/gofins/fins"
 )
 
 func main() {
@@ -13,7 +13,7 @@ func main() {
 	clientAddr := fins.NewAddress("127.0.0.1", 9600, 0, 34, 0)
 	plcAddr := fins.NewAddress("127.0.0.1", 9601, 0, 0, 0)
 
-	s, e := fins.NewServer(plcAddr, fins.DMAreaHandler)
+	s, e := fins.NewPLCSimulator(plcAddr)
 	if e != nil {
 		panic(e)
 	}

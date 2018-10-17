@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"encoding/binary"
 )
 
 func TestFinsClient(t *testing.T) {
@@ -12,21 +11,8 @@ func TestFinsClient(t *testing.T) {
 	plcAddr := NewAddress("", 9601, 0, 10, 0)
 
 	toWrite := []uint16{5, 4, 3, 2, 1}
-	handler := func(req request, mem []byte) response {
-		l := uint16(len(toWrite))
-		bts := make([]byte, 2*l, 2*l)
-		for i := 0; i < int(l); i++ {
-			binary.BigEndian.PutUint16(bts[i*2:i*2+2], toWrite[i])
-		}
-		return response{
-			header:      defaultResponseHeader(req.header),
-			commandCode: req.commandCode,
-			endCode:     EndCodeNormalCompletion,
-			data:        bts,
-		}
-	}
 
-	s, e := NewServer(plcAddr, handler)
+	s, e := NewPLCSimulator(plcAddr)
 	if e != nil {
 		panic(e)
 	}

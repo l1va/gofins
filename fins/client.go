@@ -20,6 +20,7 @@ type Client struct {
 	dst  finsAddress
 	src  finsAddress
 	sid  byte
+	closed bool
 }
 
 // NewClient creates a new Omron FINS client
@@ -41,6 +42,7 @@ func NewClient(localAddr, plcAddr Address) (*Client, error) {
 
 // Close Closes an Omron FINS connection
 func (c *Client) Close() {
+	c.closed = true
 	c.conn.Close()
 }
 
@@ -266,7 +268,11 @@ func (c *Client) listenLoop() {
 		buf := make([]byte, 2048)
 		n, err := bufio.NewReader(c.conn).Read(buf)
 		if err != nil {
-			log.Fatal(err)
+			// do not complain when connection is closed by user
+			if !c.closed {
+				log.Fatal(err)
+			}
+			break
 		}
 
 		if n > 0 {
