@@ -10,12 +10,9 @@ import (
 type Server struct {
 	addr    Address
 	conn    *net.UDPConn
-	handler CommandHandler
 	dmarea []byte
 	closed bool
 }
-
-type CommandHandler func(req request, dmarea []byte) response
 
 const DM_AREA_SIZE = 32768
 
@@ -36,7 +33,7 @@ func NewPLCSimulator(plcAddr Address) (*Server, error) {
 			rlen, remote, err := conn.ReadFromUDP(buf[:])
 			if rlen > 0 {
 				req := decodeRequest(buf[:rlen])
-				resp := handler(req, s.dmarea)
+				resp := s.handler(req)
 
 				_, err = conn.WriteToUDP(encodeResponse(resp), &net.UDPAddr{IP: remote.IP, Port: remote.Port})
 			}
@@ -54,7 +51,7 @@ func NewPLCSimulator(plcAddr Address) (*Server, error) {
 }
 
 // Works with only DM area, 2 byte integers
-func handler(r request, dmarea []byte) response {
+func (s *Server) handler(r request) response {
 	var endCode uint16
 	data := []byte{}
 	switch r.commandCode {
@@ -68,9 +65,9 @@ func handler(r request, dmarea []byte) response {
 			endCode = EndCodeAddressRangeExceeded
 		} else {
 			if r.commandCode == CommandCodeMemoryAreaRead {
-				data = dmarea[memAddr.address:memAddr.address+ic*2]
+				data = s.dmarea[memAddr.address:memAddr.address+ic*2]
 			} else { // Write command
-				copy(dmarea[memAddr.address:memAddr.address+ic*2], r.data[6:6+ic*2])
+				copy(s.dmarea[memAddr.address:memAddr.address+ic*2], r.data[6:6+ic*2])
 			}
 			endCode = EndCodeNormalCompletion
 		}
