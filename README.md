@@ -13,14 +13,5 @@ Additional work in the siyka-au repository was tested against a <b>CP1L-EM</b>.
 
 Feel free to ask questions, raise issues and make pull requests!
 
-<b>PS. Build is ok</b> but Travis is randomly failing to run tests with <b>go 1.10</b>
-(with earlier go versions tests are passed too): [travis](https://travis-ci.org/l1va/gofins)
-```
- === RUN   TestFinsClient
- 2018/03/11 18:45:18 read udp 127.0.0.1:33746->127.0.0.1:9600: use of closed network connection
- FAIL   github.com/l1va/gofins/fins	0.004s
- The command "go test -v ./..." exited with 1.
- ```
- 
  ### Thanks
  malleblas for his PR: https://github.com/l1va/gofins/pull/1
