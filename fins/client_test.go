@@ -32,7 +32,7 @@ func TestFinsClient(t *testing.T) {
 	assert.Equal(t, toWrite, vals)
 
 	// test setting response timeout
-	c.SetTimeout(50)
+	c.SetTimeoutMs(50)
 	_, err = c.ReadWords(MemoryAreaDMWord, 100, 5)
 	assert.Nil(t, err)
 }

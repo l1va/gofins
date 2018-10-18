@@ -165,7 +165,7 @@ func encodeBCD(x uint64) []byte {
 func timesTenPlusCatchingOverflow(x uint64, digit uint64) (uint64, error) {
 	x5 := x<<2 + x
 	if int64(x5) < 0 || x5<<1 > ^digit {
-		return 0, &BCDOverflowError{}
+		return 0, BCDOverflowError{}
 	}
 	return x5<<1 + digit, nil
 }
@@ -174,7 +174,7 @@ func decodeBCD(bcd []byte) (x uint64, err error) {
 	for i, b := range bcd {
 		hi, lo := uint64(b>>4), uint64(b&0x0f)
 		if hi > 9 {
-			return 0, &BCDBadDigitError{"hi", hi}
+			return 0, BCDBadDigitError{"hi", hi}
 		}
 		x, err = timesTenPlusCatchingOverflow(x, hi)
 		if err != nil {
@@ -184,7 +184,7 @@ func decodeBCD(bcd []byte) (x uint64, err error) {
 			return x, nil
 		}
 		if lo > 9 {
-			return 0, &BCDBadDigitError{"lo", lo}
+			return 0, BCDBadDigitError{"lo", lo}
 		}
 		x, err = timesTenPlusCatchingOverflow(x, lo)
 		if err != nil {
