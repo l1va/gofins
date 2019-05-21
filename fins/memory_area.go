@@ -25,7 +25,7 @@ const (
 	// MemoryAreaARWord Memory area: auxillary area; word
 	MemoryAreaARWord byte = 0xb3
 
-	// MemoryAreaTimerCounterCompletionFlag Memory area: counter completin flag
+	// MemoryAreaTimerCounterCompletionFlag Memory area: counter completion flag
 	MemoryAreaTimerCounterCompletionFlag byte = 0x09
 
 	// MemoryAreaTimerCounterPV Memory area: counter PV
