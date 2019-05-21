@@ -1,7 +1,9 @@
 package main
 
 import (
+	"encoding/binary"
 	"fmt"
+	"math"
 
 	"github.com/l1va/gofins/fins"
 )
@@ -38,6 +40,20 @@ func main() {
 		panic(err)
 	}
 	fmt.Println(z)
+
+	buf := make([]byte, 8, 8)
+	binary.LittleEndian.PutUint64(buf[:], math.Float64bits(15.6))
+	err = c.WriteBytes(fins.MemoryAreaDMWord, 10, buf)
+	if err != nil {
+		panic(err)
+	}
+
+	b, err := c.ReadBytes(fins.MemoryAreaDMWord, 10, 4)
+	if err != nil {
+		panic(err)
+	}
+    floatRes := math.Float64frombits(binary.LittleEndian.Uint64(b))
+	fmt.Println("Float result:", floatRes)
 
 	// s, _ := c.ReadString(fins.MemoryAreaDMWord, 10000, 10)
 	// fmt.Println(s)
