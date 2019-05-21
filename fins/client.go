@@ -316,7 +316,8 @@ func (c *Client) listenLoop() {
 func checkIsWordMemoryArea(memoryArea byte) bool {
 	if memoryArea == MemoryAreaDMWord ||
 		memoryArea == MemoryAreaARWord ||
-		memoryArea == MemoryAreaHRWord {
+		memoryArea == MemoryAreaHRWord ||
+		memoryArea == MemoryAreaWRWord {
 		return true
 	}
 	return false
@@ -325,7 +326,8 @@ func checkIsWordMemoryArea(memoryArea byte) bool {
 func checkIsBitMemoryArea(memoryArea byte) bool {
 	if memoryArea == MemoryAreaDMBit ||
 		memoryArea == MemoryAreaARBit ||
-		memoryArea == MemoryAreaHRBit {
+		memoryArea == MemoryAreaHRBit ||
+		memoryArea == MemoryAreaWRBit {
 		return true
 	}
 	return false
