@@ -70,7 +70,7 @@ func (c *Client) ReadWords(memoryArea byte, address uint16, readCount uint16) ([
 
 	data := make([]uint16, readCount, readCount)
 	for i := 0; i < int(readCount); i++ {
-		data[i] = binary.LittleEndian.Uint16(r.data[i*2 : i*2+2])
+		data[i] = binary.BigEndian.Uint16(r.data[i*2 : i*2+2])
 	}
 
 	return data, nil
@@ -159,7 +159,7 @@ func (c *Client) WriteWords(memoryArea byte, address uint16, data []uint16) erro
 	l := uint16(len(data))
 	bts := make([]byte, 2*l, 2*l)
 	for i := 0; i < int(l); i++ {
-		binary.LittleEndian.PutUint16(bts[i*2:i*2+2], data[i])
+		binary.BigEndian.PutUint16(bts[i*2:i*2+2], data[i])
 	}
 	command := writeCommand(memAddr(memoryArea, address), l, bts)
 
