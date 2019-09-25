@@ -10,7 +10,7 @@ import (
 type Server struct {
 	addr      Address
 	conn      *net.UDPConn
-	dmarea    []byte
+	dmarea    []int16
 	bitdmarea []byte
 	closed    bool
 }
@@ -20,7 +20,8 @@ const DM_AREA_SIZE = 32768
 func NewPLCSimulator(plcAddr Address) (*Server, error) {
 	s := new(Server)
 	s.addr = plcAddr
-	s.dmarea = make([]byte, DM_AREA_SIZE)
+	//s.dmarea = make([]byte, DM_AREA_SIZE)
+	s.dmarea = make([]int16, DM_AREA_SIZE)
 	s.bitdmarea = make([]byte, DM_AREA_SIZE)
 
 	conn, err := net.ListenUDP("udp", plcAddr.udpAddress)
@@ -36,7 +37,6 @@ func NewPLCSimulator(plcAddr Address) (*Server, error) {
 			if rlen > 0 {
 				req := decodeRequest(buf[:rlen])
 				resp := s.handler(req)
-
 				_, err = conn.WriteToUDP(encodeResponse(resp), &net.UDPAddr{IP: remote.IP, Port: remote.Port})
 			}
 			if err != nil {
@@ -69,10 +69,23 @@ func (s *Server) handler(r request) response {
 				break
 			}
 
+			/*	if r.commandCode == CommandCodeMemoryAreaRead { //Read command
+					data = s.dmarea[memAddr.address : memAddr.address+ic*2]
+				} else { // Write command
+					copy(s.dmarea[memAddr.address:memAddr.address+ic*2], r.data[6:6+ic*2])
+				}*/
 			if r.commandCode == CommandCodeMemoryAreaRead { //Read command
-				data = s.dmarea[memAddr.address : memAddr.address+ic*2]
+				for i := uint16(0); i < ic; i++ {
+					wordData := make([]byte, 2)
+					binary.BigEndian.PutUint16(wordData, uint16(s.dmarea[memAddr.address+i]))
+					data = append(data[:], wordData[:]...)
+				}
 			} else { // Write command
-				copy(s.dmarea[memAddr.address:memAddr.address+ic*2], r.data[6:6+ic*2])
+				startIndex := 6
+				for i := uint16(0); i < ic; i++ {
+					s.dmarea[memAddr.address+i] = int16(binary.BigEndian.Uint16(r.data[startIndex : startIndex+2]))
+					startIndex += 2
+				}
 			}
 			endCode = EndCodeNormalCompletion
 
