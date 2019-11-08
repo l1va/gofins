@@ -32,7 +32,7 @@ func main() {
 		panic(err)
 	}
 	fmt.Println(z)
-
+	// output: [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]
 	c.WriteWords(fins.MemoryAreaDMWord, 2000, []uint16{z[0] + 1, z[1] - 1})
 
 	z, err = c.ReadWords(fins.MemoryAreaDMWord, 2000, 50)
@@ -40,7 +40,7 @@ func main() {
 		panic(err)
 	}
 	fmt.Println(z)
-
+	// output: [1 65535 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]
 	buf := make([]byte, 8, 8)
 	binary.LittleEndian.PutUint64(buf[:], math.Float64bits(15.6))
 	err = c.WriteBytes(fins.MemoryAreaDMWord, 10, buf)
@@ -54,7 +54,7 @@ func main() {
 	}
     floatRes := math.Float64frombits(binary.LittleEndian.Uint64(b))
 	fmt.Println("Float result:", floatRes)
-
+	// output: Float result: 15.6
 
 	err = c.WriteString(fins.MemoryAreaDMWord, 10000, "teststring")
 	if err != nil {
@@ -62,8 +62,8 @@ func main() {
 	}
 
 	str, _ := c.ReadString(fins.MemoryAreaDMWord, 10000, 5)
-	fmt.Println(str)
-	fmt.Println(len(str))
+	fmt.Println(str, len(str))
+	// output: teststring 10
 
 	//bit, _ := c.ReadBits(fins.MemoryAreaDMWord, 10473, 2, 1)
 	//fmt.Println(bit)
