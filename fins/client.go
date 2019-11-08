@@ -23,6 +23,7 @@ type Client struct {
 	sid               byte
 	closed            bool
 	responseTimeoutMs time.Duration
+	byteOrder         binary.ByteOrder
 }
 
 // NewClient creates a new Omron FINS client
@@ -31,6 +32,7 @@ func NewClient(localAddr, plcAddr Address) (*Client, error) {
 	c.dst = plcAddr.finsAddress
 	c.src = localAddr.finsAddress
 	c.responseTimeoutMs = DEFAULT_RESPONSE_TIMEOUT
+	c.byteOrder = binary.BigEndian
 
 	conn, err := net.DialUDP("udp", localAddr.udpAddress, plcAddr.udpAddress)
 	if err != nil {
@@ -41,6 +43,11 @@ func NewClient(localAddr, plcAddr Address) (*Client, error) {
 	c.resp = make([]chan response, 256) //storage for all responses, sid is byte - only 256 values
 	go c.listenLoop()
 	return c, nil
+}
+// Set byte order
+// Default value: binary.BigEndian
+func (c *Client) SetByteOrder(o binary.ByteOrder) {
+	c.byteOrder = o
 }
 
 // Set response timeout duration (ms).
@@ -70,7 +77,7 @@ func (c *Client) ReadWords(memoryArea byte, address uint16, readCount uint16) ([
 
 	data := make([]uint16, readCount, readCount)
 	for i := 0; i < int(readCount); i++ {
-		data[i] = binary.LittleEndian.Uint16(r.data[i*2 : i*2+2])
+		data[i] = c.byteOrder.Uint16(r.data[i*2 : i*2+2])
 	}
 
 	return data, nil
@@ -159,7 +166,7 @@ func (c *Client) WriteWords(memoryArea byte, address uint16, data []uint16) erro
 	l := uint16(len(data))
 	bts := make([]byte, 2*l, 2*l)
 	for i := 0; i < int(l); i++ {
-		binary.LittleEndian.PutUint16(bts[i*2:i*2+2], data[i])
+		c.byteOrder.PutUint16(bts[i*2:i*2+2], data[i])
 	}
 	command := writeCommand(memAddr(memoryArea, address), l, bts)
 
@@ -332,55 +339,3 @@ func checkIsBitMemoryArea(memoryArea byte) bool {
 	}
 	return false
 }
-
-// @ToDo Asynchronous functions
-// ReadDataAsync reads from the PLC data area asynchronously
-// func (c *Client) ReadDataAsync(startAddr uint16, readCount uint16, callback func(resp response)) error {
-// 	sid := c.incrementSid()
-// 	cmd := readDCommand(defaultHeader(c.dst, c.src, sid), startAddr, readCount)
-// 	return c.asyncCommand(sid, cmd, callback)
-// }
-
-// WriteDataAsync writes to the PLC data area asynchronously
-// func (c *Client) WriteDataAsync(startAddr uint16, data []uint16, callback func(resp response)) error {
-// 	sid := c.incrementSid()
-// 	cmd := writeDCommand(defaultHeader(c.dst, c.src, sid), startAddr, data)
-// 	return c.asyncCommand(sid, cmd, callback)
-// }
-// func (c *Client) asyncCommand(sid byte, cmd []byte, callback func(resp response)) error {
-// 	_, err := c.conn.Write(cmd)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	asyncResponse(c.resp[sid], callback)
-// 	return nil
-// }
-//
-//if callback == nil {
-//	p := responseFrame.Payload()			responseFrame := <-c.resp[header.ServiceID()]
-//	response := NewResponse(			p := responseFrame.Payload()
-//		p.CommandCode(),			response := NewResponse(
-//		binary.BigEndian.Uint16(p.Data()[0:2]),				p.CommandCode(),
-//		p.Data()[2:])				binary.BigEndian.Uint16(p.Data()[0:2]),
-//	return response, nil				p.Data()[2:])
-//		return response, nil
-//	}
-//
-// 	go func(frameChannel chan Frame, callback func(*Response)) {
-//		responseFrame := <-frameChannel
-//		p := responseFrame.Payload()
-//		response := NewResponse(
-//			p.CommandCode(),
-//			binary.BigEndian.Uint16(p.Data()[0:2]),
-//			p.Data()[2:])
-//		callback(response)
-//	}(c.resp[header.ServiceID()], callback)
-
-// func asyncResponse(ch chan response, callback func(r response)) {
-// 	if callback != nil {
-// 		go func(ch chan response, callback func(r response)) {
-// 			ans := <-ch
-// 			callback(ans)
-// 		}(ch, callback)
-// 	}
-// }

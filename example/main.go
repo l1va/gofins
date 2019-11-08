@@ -55,13 +55,19 @@ func main() {
     floatRes := math.Float64frombits(binary.LittleEndian.Uint64(b))
 	fmt.Println("Float result:", floatRes)
 
-	// s, _ := c.ReadString(fins.MemoryAreaDMWord, 10000, 10)
-	// fmt.Println(s)
-	// fmt.Println(len(s))
 
-	// b, _ := c.ReadBits(fins.MemoryAreaDMWord, 10473, 2, 1)
-	// fmt.Println(b)
-	// fmt.Println(len(b))
+	err = c.WriteString(fins.MemoryAreaDMWord, 10000, "teststring")
+	if err != nil {
+		panic(err)
+	}
+
+	str, _ := c.ReadString(fins.MemoryAreaDMWord, 10000, 5)
+	fmt.Println(str)
+	fmt.Println(len(str))
+
+	//bit, _ := c.ReadBits(fins.MemoryAreaDMWord, 10473, 2, 1)
+	//fmt.Println(bit)
+	//fmt.Println(len(bit))
 
 	// c.WriteWords(fins.MemoryAreaDMWord, 24000, []uint16{z[0] + 1, z[1] - 1})
 	// c.WriteBits(fins.MemoryAreaDMBit, 24002, 0, []bool{false, false, false, true,
