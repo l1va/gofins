@@ -44,6 +44,7 @@ func NewClient(localAddr, plcAddr Address) (*Client, error) {
 	go c.listenLoop()
 	return c, nil
 }
+
 // Set byte order
 // Default value: binary.BigEndian
 func (c *Client) SetByteOrder(o binary.ByteOrder) {
@@ -191,7 +192,7 @@ func (c *Client) WriteBytes(memoryArea byte, address uint16, b []byte) error {
 	if checkIsWordMemoryArea(memoryArea) == false {
 		return IncompatibleMemoryAreaError{memoryArea}
 	}
-	command := writeCommand(memAddr(memoryArea, address), uint16(len(b)), b)
+	command := writeCommand(memAddr(memoryArea, address), uint16(len(b)/2), b)
 	return checkResponse(c.sendCommand(command))
 }
 
